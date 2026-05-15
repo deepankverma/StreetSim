@@ -1,0 +1,14 @@
+{
+  "default_length_m": 50.0,
+  "min_confidence_keep": 0.45,
+  "round_width_to": 0.5,
+  "visible_to_total_mode": "visible_only",
+  "count_multiplier": {
+    "buildings": 1.0,
+    "trees": 1.0,
+    "parked_cars": 1.0,
+    "moving_cars": 1.0,
+    "pedestrians": 1.0,
+    "median_trees": 1.0
+  }
+}

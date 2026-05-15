@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Street Configurator (v4.2 — PowerShell + post-processing toggles)</title>
+  <style>
+    :root{ --bg:#0b0d10; --card:#12161a; --muted:#9ab; --text:#eaf2ff; --acc:#5dd; --line:#1f2630; --btn:#1a9; --btnText:#041; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+    h1{font-size:24px;margin:0 0 12px}
+    p.sub{color:var(--muted);margin:0 0 24px}
+    .grid{display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+    .row{display:grid;grid-template-columns:1fr 200px;gap:12px;align-items:center;margin:10px 0}
+    .row .val{justify-self:end;color:var(--acc);font-variant-numeric:tabular-nums}
+    fieldset{border:1px dashed var(--line);border-radius:12px;padding:12px;margin:6px 0}
+    legend{color:var(--muted)}
+    label{display:inline-flex;gap:8px;align-items:center;margin:6px 12px 6px 0}
+    input[type="range"], input[type="number"], input[type="text"], select{width:100%}
+    .cols{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    .btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+    button.primary{background:var(--btn);color:var(--btnText);border:none;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+    button.subtle{background:transparent;color:var(--muted);border:1px dashed var(--line);border-radius:12px;padding:8px 12px;cursor:pointer}
+    pre{background:#0a0d11;border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;max-height:460px}
+    .hint{color:var(--muted);font-size:13px;margin-top:6px}
+    .inline{display:inline-flex;gap:8px;align-items:center}
+    .badge{border:1px solid var(--line);padding:2px 8px;border-radius:999px;color:var(--muted);font-size:12px}
+    .disabled{opacity:0.5;pointer-events:none}
+    @media (max-width:940px){.cols{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Street Configurator <span class="badge">v4.2</span></h1>
+  <p class="sub">All controls on one page. Copy a PowerShell pipeline that writes <code>street_data.json</code> from the current form values, runs Blender stages, and can optionally create street properties, SOLWEIG rasters, ENVI-met voxels, and a point cloud.</p>
+
+  <section class="card grid">
+    <div class="cols">
+      <!-- Basics & median -->
+      <fieldset>
+        <legend>1) Basics</legend>
+        <div class="row">
+          <label for="length">Street length (meters)</label>
+          <div class="val"><span id="lengthVal">50</span> m</div>
+        </div>
+        <input id="length" type="range" min="10" max="150" value="50" step="1" oninput="sync()" />
+        <hr style="border-color:var(--line);opacity:.3;margin:10px 0">
+        <label class="inline"><input id="medianPresent" type="checkbox" checked onchange="sync()">Include median</label>
+        <div class="row">
+          <label>Median width (m)</label>
+          <div class="val"><span id="medianVal">1.5</span> m</div>
+        </div>
+        <input id="median" type="range" min="0" max="50" value="1.5" step="0.5" oninput="sync()" />
+      </fieldset>
+
+      <!-- Buildings -->
+      <fieldset>
+        <legend>2) Buildings</legend>
+        <div>
+          <label><input type="radio" name="bldg" value="both" checked onchange="sync()">Both sides</label>
+          <label><input type="radio" name="bldg" value="left" onchange="sync()">Left only</label>
+          <label><input type="radio" name="bldg" value="right" onchange="sync()">Right only</label>
+          <label><input type="radio" name="bldg" value="none" onchange="sync()">None</label>
+        </div>
+        <div class="row"><label>Buildings on left (count)</label><input id="bldgLeftCount" type="number" min="0" max="200" value="3" oninput="sync()" /></div>
+        <div class="row"><label>Buildings on right (count)</label><input id="bldgRightCount" type="number" min="0" max="200" value="4" oninput="sync()" /></div>
+      </fieldset>
+
+      <!-- Trees -->
+      <fieldset>
+        <legend>3) Trees</legend>
+        <div>
+          <label class="inline"><input id="treesLeft" type="checkbox" checked onchange="sync()">Left side</label>
+          <label class="inline"><input id="treesRight" type="checkbox" checked onchange="sync()">Right side</label>
+          <label class="inline"><input id="treesMedian" type="checkbox" checked onchange="sync()">On median</label>
+        </div>
+        <div class="row"><label>Trees left (count)</label><input id="treesLeftCount" type="number" min="0" max="10" value="1" oninput="sync()" /></div>
+        <div class="row"><label>Trees right (count)</label><input id="treesRightCount" type="number" min="0" max="10" value="1" oninput="sync()" /></div>
+        <div class="row"><label>Trees on median (count)</label><input id="treesMedianCount" type="number" min="0" max="10" value="1" oninput="sync()" /></div>
+      </fieldset>
+
+      <!-- Driveways / Carriageways -->
+      <fieldset>
+        <legend>4) Driveways / Carriageways</legend>
+        <div class="row"><label>Left driveway width (m)</label><div class="val"><span id="driveLeftVal">7</span> m</div></div>
+        <input id="driveLeft" type="range" min="0" max="50" value="7" step="0.5" oninput="sync(); toggleCarsInput()" />
+        <div class="row"><label>Right driveway width (m)</label><div class="val"><span id="driveRightVal">7</span> m</div></div>
+        <input id="driveRight" type="range" min="0" max="50" value="7" step="0.5" oninput="sync(); toggleCarsInput()" />
+        <div class="hint">Set a side to 0 to remove that driveway. Asymmetric streets are OK.</div>
+      </fieldset>
+
+      <!-- Bike lanes -->
+      <fieldset>
+        <legend>5) Bike lanes</legend>
+        <div>
+          <label><input type="radio" name="bike" value="none" onchange="sync()">None</label>
+          <label><input type="radio" name="bike" value="left" onchange="sync()">Left</label>
+          <label><input type="radio" name="bike" value="right" onchange="sync()">Right</label>
+          <label><input type="radio" name="bike" value="both" checked onchange="sync()">Both</label>
+        </div>
+        <div class="row"><label>Bike lane width (m)</label><div class="val"><span id="bikeWVal">2.0</span> m</div></div>
+        <input id="bikeW" type="range" min="0" max="10" value="2" step="0.5" oninput="sync()" />
+      </fieldset>
+
+      <!-- Footpaths -->
+      <fieldset>
+        <legend>6) Footpaths</legend>
+        <div>
+          <label><input type="radio" name="fp" value="none" onchange="sync()">None</label>
+          <label><input type="radio" name="fp" value="left" onchange="sync()">Left</label>
+          <label><input type="radio" name="fp" value="right" onchange="sync()">Right</label>
+          <label><input type="radio" name="fp" value="both" checked onchange="sync()">Both</label>
+        </div>
+        <div class="row"><label>Footpath width (m)</label><div class="val"><span id="fpWVal">4.0</span> m</div></div>
+        <input id="fpW" type="range" min="0" max="20" value="5" step="0.5" oninput="sync()" />
+      </fieldset>
+
+      <!-- On-street parking -->
+      <fieldset>
+        <legend>7) On-street parking</legend>
+        <div>
+          <label class="inline"><input id="parkLeft" type="checkbox" checked onchange="sync(); toggleParkedVehicles()">Left</label>
+          <label class="inline"><input id="parkRight" type="checkbox" onchange="sync(); toggleParkedVehicles()">Right</label>
+        </div>
+        <div class="row"><label>Parking bay width (left, m)</label><div class="val"><span id="parkLeftWVal">2.5</span> m</div></div>
+        <input id="parkLeftW" type="range" min="0" max="10" value="2.5" step="0.1"
+       oninput="document.getElementById('parkLeftWVal').textContent=(+this.value).toFixed(1); sync()" />
+        <div class="row"><label>Parking bay width (right, m)</label><div class="val"><span id="parkRightWVal">2.5</span> m</div></div>
+        <input id="parkRightW" type="range" min="0" max="10" value="2.5" step="0.1"
+       oninput="document.getElementById('parkRightWVal').textContent=(+this.value).toFixed(1); sync()" />
+        <div id="parkedCarsWrap" class="row"><label>Vehicles in on-street parking (count)</label><input id="parkedCars" type="number" min="0" max="200" value="10" oninput="sync()" /></div>
+      </fieldset>
+
+      <!-- Vegetation & agents -->
+      <fieldset>
+        <legend>8) Vegetation & Agents</legend>
+        <label class="inline"><input id="vegPresent" type="checkbox" checked onchange="sync()">Include vegetation</label>
+        <div class="row"><label>Vegetation density</label><input id="vegDensity" type="range" min="0" max="10" value="2" step="1" oninput="sync()" /></div>
+        <div id="movingCarsWrap" class="row"><label>Moving vehicles (0–10)</label><input id="movingCars" type="number" min="0" max="10" value="4" oninput="sync()" /></div>
+        <div class="row"><label>Pedestrians (0–25)</label><input id="peds" type="number" min="1" max="20" value="10" oninput="sync()" /></div>
+        <div class="hint">Moving vehicles are disabled if no driveway exists.</div>
+      </fieldset>
+
+      <!-- Pipeline & locations -->
+      <fieldset>
+        <legend>9) Pipeline & Locations</legend>
+        <div class="row" style="grid-template-columns:repeat(5,1fr);gap:10px">
+          <label><input type="checkbox" id="st_model" checked> Model</label>
+          <label><input type="checkbox" id="st_texture" checked> Texture</label>
+          <label><input type="checkbox" id="st_anim" checked> Animate</label>
+          <label><input type="checkbox" id="st_sound" checked> Sound</label>
+          <label><input type="checkbox" id="st_render" checked> Render</label>
+        </div>
+        <div class="hint">Optional post-processing</div>
+        <div class="row" style="grid-template-columns:repeat(4,1fr);gap:10px">
+          <label><input type="checkbox" id="st_props"> Street properties</label>
+          <label><input type="checkbox" id="st_solweig"> SOLWEIG</label>
+          <label><input type="checkbox" id="st_envimet"> ENVI-met voxels</label>
+          <label><input type="checkbox" id="st_pointcloud"> Point cloud</label>
+        </div>
+        <div class="row"><label>Render mode</label>
+          <div>
+            <label><input type="radio" name="rendermode" value="render1"> Spin video (MP4)</label>
+            <label><input type="radio" name="rendermode" value="render2"> Still (PNG)</label>
+            <label><input type="radio" name="rendermode" value="render3" checked> Clay + outlines (PNG)</label>
+          </div>
+        </div>
+        <div class="row"><label>Blender command</label><input id="blender" type="text" value="blender" /></div>
+        <div class="row"><label>Scripts folder</label><input id="scripts" type="text" placeholder="C:\\path\\to\\scripts" /></div>
+        <div class="row"><label>Output folder</label><input id="outdir" type="text" placeholder="C:\\out" /></div>
+        <div class="row"><label>Output file name</label><input id="outname" type="text" placeholder="spin.mp4 / still.png" /></div>
+      </fieldset>
+
+      <!-- Export & preview -->
+      <fieldset>
+        <legend>10) Export</legend>
+        <div class="btns">
+          <button class="primary" id="btnJson">Download street_data.json</button>
+          <button class="ghost" id="btnCopyPS" type="button">Copy PowerShell</button>
+          <button class="subtle" id="btnReset" type="button">Reset defaults</button>
+        </div>
+        <div class="grid">
+          <div>
+            <div class="hint">Preview JSON</div>
+            <pre id="preview"></pre>
+          </div>
+          <div>
+            <div class="hint">Preview PowerShell (copy & paste into PowerShell) — JSON is written from the current form values</div>
+            <pre id="previewPS"></pre>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+</div>
+
+<script>
+  const UI = {
+    length: document.getElementById('length'), lenVal: document.getElementById('lengthVal'),
+    medianPresent: document.getElementById('medianPresent'), median: document.getElementById('median'), medianVal: document.getElementById('medianVal'),
+    bldgLeftCount: document.getElementById('bldgLeftCount'), bldgRightCount: document.getElementById('bldgRightCount'),
+    treesLeft: document.getElementById('treesLeft'), treesRight: document.getElementById('treesRight'), treesMedian: document.getElementById('treesMedian'),
+    treesLeftCount: document.getElementById('treesLeftCount'), treesRightCount: document.getElementById('treesRightCount'), treesMedianCount: document.getElementById('treesMedianCount'),
+    driveLeft: document.getElementById('driveLeft'), driveRight: document.getElementById('driveRight'), driveLeftVal: document.getElementById('driveLeftVal'), driveRightVal: document.getElementById('driveRightVal'),
+    parkLeft: document.getElementById('parkLeft'), parkRight: document.getElementById('parkRight'), parkLeftW: document.getElementById('parkLeftW'), parkRightW: document.getElementById('parkRightW'), parkedCars: document.getElementById('parkedCars'), parkedCarsWrap: document.getElementById('parkedCarsWrap'),
+    bikeW: document.getElementById('bikeW'), bikeWVal: document.getElementById('bikeWVal'), fpW: document.getElementById('fpW'), fpWVal: document.getElementById('fpWVal'),
+    vegPresent: document.getElementById('vegPresent'), vegDensity: document.getElementById('vegDensity'),
+    movingCars: document.getElementById('movingCars'), movingCarsWrap: document.getElementById('movingCarsWrap'), peds: document.getElementById('peds'),
+    st_model: document.getElementById('st_model'), st_texture: document.getElementById('st_texture'), st_anim: document.getElementById('st_anim'), st_sound: document.getElementById('st_sound'), st_render: document.getElementById('st_render'), st_props: document.getElementById('st_props'), st_solweig: document.getElementById('st_solweig'), st_envimet: document.getElementById('st_envimet'), st_pointcloud: document.getElementById('st_pointcloud'),
+    blender: document.getElementById('blender'), scripts: document.getElementById('scripts'), outdir: document.getElementById('outdir'), outname: document.getElementById('outname'),
+    preview: document.getElementById('preview'), previewPS: document.getElementById('previewPS'),
+    btnJson: document.getElementById('btnJson'), btnCopyPS: document.getElementById('btnCopyPS'), btnReset: document.getElementById('btnReset')
+  };
+
+  // Format to one decimal
+const oneDec = v => (+v).toFixed(1);
+
+// Keep labels in sync with their sliders
+function setReadouts(){
+  UI.lenVal.textContent         = oneDec(UI.length.value);
+  UI.medianVal.textContent      = oneDec(UI.median.value);
+  UI.driveLeftVal.textContent   = oneDec(UI.driveLeft.value);
+  UI.driveRightVal.textContent  = oneDec(UI.driveRight.value);
+  UI.bikeWVal.textContent       = oneDec(UI.bikeW.value);
+  UI.fpWVal.textContent         = oneDec(UI.fpW.value);
+  UI.parkLeftWVal.textContent   = oneDec(UI.parkLeftW.value);
+  UI.parkRightWVal.textContent  = oneDec(UI.parkRightW.value);
+}
+
+// Attach both `input` and `change` so it works in all browsers
+['length','median','driveLeft','driveRight','bikeW','fpW','parkLeftW','parkRightW']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input',  setReadouts);
+    el.addEventListener('change', setReadouts);
+  });
+
+  function choice(name){ const n = document.querySelector(`input[name="${name}"]:checked`); return n ? n.value : 'none'; }
+
+function sync(){
+  UI.lenVal.textContent = UI.length.value;
+  UI.medianVal.textContent = UI.median.value;
+  UI.driveLeftVal.textContent = UI.driveLeft.value;
+  UI.driveRightVal.textContent = UI.driveRight.value;
+  UI.parkLeftWVal.textContent = UI.parkLeftW.value;
+  UI.parkRightWVal.textContent = UI.parkRightW.value;
+  UI.bikeWVal.textContent = UI.bikeW.value;
+  UI.fpWVal.textContent = UI.fpW.value;
+
+  toggleParkedVehicles();
+  toggleCarsInput();
+
+  localStorage.setItem('streetUIv42', JSON.stringify(stateFromUI()));
+  updatePreview();
+  updatePreviewPS();
+}
+
+function stateFromUI(){ return {
+  length:+UI.length.value,
+  bldg:choice('bldg'),
+  bldgLeftCount:Math.max(0,+UI.bldgLeftCount.value||0),
+  bldgRightCount:Math.max(0,+UI.bldgRightCount.value||0),
+
+  medianPresent:!!UI.medianPresent.checked, medianWidth:+UI.median.value,
+  treesLeft:!!UI.treesLeft.checked, treesRight:!!UI.treesRight.checked, treesMedian:!!UI.treesMedian.checked,
+  treesLeftCount:Math.max(0,+UI.treesLeftCount.value||0), treesRightCount:Math.max(0,+UI.treesRightCount.value||0), treesMedianCount:Math.max(0,+UI.treesMedianCount.value||0),
+  driveLeft:+UI.driveLeft.value, driveRight:+UI.driveRight.value,
+  parkLeft:!!UI.parkLeft.checked, parkRight:!!UI.parkRight.checked, parkLeftW:+UI.parkLeftW.value, parkRightW:+UI.parkRightW.value, parkedCars:Math.max(0,+UI.parkedCars.value||0),
+  bike:choice('bike'), bikeW:+UI.bikeW.value, fp:choice('fp'), fpW:+UI.fpW.value,
+  vegPresent:!!UI.vegPresent.checked, vegDensity:Math.max(0, Math.min(100, +UI.vegDensity.value||0)),
+  movingCars:Math.max(0, Math.min(10, +UI.movingCars.value||0)), peds:Math.max(0, Math.min(25, +UI.peds.value||0)),
+  pipeline:{ model:UI.st_model.checked, texture:UI.st_texture.checked, animate:UI.st_anim.checked, sound:UI.st_sound.checked, render:UI.st_render.checked, props:UI.st_props.checked, solweig:UI.st_solweig.checked, envimet:UI.st_envimet.checked, pointcloud:UI.st_pointcloud.checked },
+  paths:{ blender:UI.blender.value||'blender', scripts:UI.scripts.value||'.', outdir:UI.outdir.value||'.', outname:UI.outname.value||'' },
+  rendermode: choice('rendermode') || 'render1'
+}; }
+
+  function sidePresence(selector, side){ if(selector==='both')return true; if(selector==='left')return side==='left'; if(selector==='right')return side==='right'; return false; }
+
+function buildStreetData(){
+  const s = stateFromUI();
+
+  const sides = ['left','right'].reduce((acc,side)=>{
+    const hasBldg = sidePresence(s.bldg,side);
+    const hasBike = sidePresence(s.bike,side);
+    const hasFP   = sidePresence(s.fp,side);
+    const driveW  = side==='left' ? s.driveLeft : s.driveRight;
+    const bCount  = side==='left' ? s.bldgLeftCount : s.bldgRightCount;
+    const tPresent = side==='left' ? s.treesLeft : s.treesRight;
+    const tCount   = side==='left' ? s.treesLeftCount : s.treesRightCount;
+
+    acc[side] = {
+      driveway:{present:driveW>0,width:+driveW},
+      bikepath:{present:hasBike&&s.bikeW>0,width:hasBike?+s.bikeW:0},
+      footpath:{present:hasFP&&s.fpW>0,width:hasFP?+s.fpW:0},
+      buildings:{present:!!hasBldg,count:hasBldg?bCount:0},
+      trees:{present:!!tPresent,count:tPresent?tCount:0}
+    };
+    return acc;
+  }, {});
+
+  const median = {
+    present: !!s.medianPresent && s.medianWidth > 0,
+    width: +s.medianWidth,
+    trees:{present:!!s.treesMedian,count:s.treesMedian?s.treesMedianCount:0}
+  };
+
+  const parkPresent = !!(s.parkLeft || s.parkRight);
+  const parkSides = parkPresent ? (s.parkLeft && s.parkRight ? 'both' : (s.parkLeft ? 'left' : 'right')) : 'none';
+  const anyDrive = (s.driveLeft>0) || (s.driveRight>0);
+
+  const cfg = {
+    schemaVersion:3,
+    length:+s.length,
+    sides,
+    median,
+    street_parking: parkPresent
+      ? {present:true,sides:parkSides,width_m_per_side:{left:s.parkLeft?+s.parkLeftW:0,right:s.parkRight?+s.parkRightW:0},min_driveway_width:3.0}
+      : {present:false},
+    parked_cars:(parkPresent&&s.parkedCars>0)?{present:true,count:s.parkedCars,seed:0}:{present:false,count:0},
+    cars:(anyDrive&&s.movingCars>0)?{present:true,count:s.movingCars,scale:10.0}:{present:false,count:0},
+    humans:(s.peds>0)?{present:true,count:s.peds,scale:5.0,z_offset:1.2}:{present:false,count:0},
+    vegetation:s.vegPresent?{present:true,density:Math.round(s.vegDensity)/100}:{present:false,density:0}
+  };
+
+  return cfg;
+}
+
+  function buildPS(){
+    const s = stateFromUI();
+    const escPS = v => String(v || '').replace(/"/g, '""');
+    const blender = escPS(s.paths.blender || 'blender');
+    const scripts = escPS(s.paths.scripts || '.');
+    const outdir  = escPS(s.paths.outdir  || '.');
+    const outname = (s.paths.outname || '').trim();
+    const json = JSON.stringify(buildStreetData(), null, 2);
+
+    function deriveOutName(mode, raw){
+      const clean = (raw||'').trim().replace(/["']/g,'');
+      const ext = (mode === 'render1') ? 'mp4' : 'png';
+      if(!clean){ return (mode==='render1')?'spin.mp4':(mode==='render2'?'still.png':'still_clay.png'); }
+      const base = clean.replace(/\.[^.]+$/,'');
+      return base + '.' + ext;
+    }
+
+    const ps = [];
+    const latest = s.pipeline.sound ? '$B04' : (s.pipeline.animate ? '$B03' : (s.pipeline.texture ? '$B02' : '$B01'));
+    const renderMode = s.rendermode || 'render3';
+    const finalName = deriveOutName(renderMode, outname);
+
+    ps.push("$ErrorActionPreference = 'Stop'");
+    ps.push("$cfg = Join-Path $PWD 'street_data.json'");
+    ps.push("$json = @'");
+    ps.push(json);
+    ps.push("'@");
+    ps.push("[IO.File]::WriteAllText($cfg, $json, (New-Object System.Text.UTF8Encoding($false)))");
+
+    ps.push(`$blender = "${blender}"`);
+    ps.push(`$scripts = "${scripts}"`);
+    ps.push(`$outdir  = "${outdir}"`);
+    ps.push("$py = 'python'");
+    ps.push("function Find-Script([string]$name) {");
+    ps.push("  $direct = Join-Path $scripts $name");
+    ps.push("  if (Test-Path $direct) { return $direct }");
+    ps.push("  $hit = Get-ChildItem -Path $scripts -Recurse -File -Filter $name | Select-Object -First 1");
+    ps.push("  if (-not $hit) { throw \"Missing script $name under $scripts\" }");
+    ps.push("  return $hit.FullName");
+    ps.push("}");
+    ps.push("$S01 = Find-Script '01_model.py'");
+    ps.push("$S02 = Find-Script '02_textured.py'");
+    ps.push("$S03 = Find-Script '03_animated.py'");
+    ps.push("$S04 = Find-Script '04_soundscapes.py'");
+    ps.push("$S05 = Find-Script '05_render.py'");
+    ps.push("$P1 = Find-Script 'Prop_1_enclosure.py'");
+    ps.push("$P2 = Find-Script 'Prop_2_isovist.py'");
+    ps.push("$P3 = Find-Script 'Prop_3_svf.py'");
+    ps.push("$P4 = Find-Script 'Prop_4_shadefrac.py'");
+    ps.push("$PM = Find-Script 'Prop_5_6_Loud_dyna.py'");
+    ps.push("$SOL = Find-Script 'solweig_export_rasters.py'");
+    ps.push("$SOLTIF = Find-Script 'solweig_ascii_to_geotiff.py'");
+    ps.push("$ENVX = Find-Script 'blend_to_envimet_voxels.py'");
+    ps.push("$PCX = Find-Script 'blend_to_pointcloud.py'");
+    ps.push("$lat = 52.52");
+    ps.push("$lon = 13.405");
+    ps.push("$date = '2025-06-21'");
+    ps.push("$tstart = 12.0");
+    ps.push("$tend = 13.0");
+    ps.push("$tz = 2.0");
+    ps.push("$north = 0.0");
+    ps.push("if (!(Test-Path $outdir)) { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }");
+    ps.push("$B01 = Join-Path $outdir '01_model.blend'");
+    ps.push("$B02 = Join-Path $outdir '02_textured.blend'");
+    ps.push("$B03 = Join-Path $outdir '03_animated.blend'");
+    ps.push("$B04 = Join-Path $outdir '04_sounded.blend'");
+    ps.push("$texturesDir = Join-Path $scripts 'textures'");
+    ps.push("$mixamoDir = Join-Path $scripts 'mixamo_fbx'");
+    ps.push("$soundsDir = Join-Path $scripts 'sounds'");
+
+    if (s.pipeline.model)   { ps.push("& $blender -b -P $S01 -- --config $cfg --outblend $B01 --asset-root $scripts"); }
+    if (s.pipeline.texture) { ps.push("& $blender -b $B01 -P $S02 -- --outblend $B02 --texdir $texturesDir --pack true --relative true"); }
+    if (s.pipeline.animate) {
+      const inA = s.pipeline.texture ? '$B02' : '$B01';
+      ps.push(`& $blender -b ${inA} -P $S03 -- --fps 30 --duration 20 --mixamo_dir $mixamoDir --out $B03`);
+    }
+    if (s.pipeline.sound) {
+      const inS = s.pipeline.animate ? '$B03' : (s.pipeline.texture ? '$B02' : '$B01');
+      ps.push(`& $blender -b ${inS} -P $S04 -- --outblend $B04 --dir_car (Join-Path $soundsDir 'car') --dir_walk (Join-Path $soundsDir 'walk') --dir_run (Join-Path $soundsDir 'run') --dir_bird (Join-Path $soundsDir 'bird') --dir_wind (Join-Path $soundsDir 'wind') --dir_amb (Join-Path $soundsDir 'amb')`);
+    }
+    if (s.pipeline.render) {
+      ps.push(`& $blender -b ${latest} -P $S05 -- --out (Join-Path $outdir '${finalName}') --mode ${renderMode}`);
+    }
+
+    ps.push(`$LATEST = ${latest}`);
+
+    if (s.pipeline.props) {
+      ps.push("$propMode = 'render2'");
+      ps.push("& $blender -b $LATEST -P $P1 -- --clear true --save_as (Join-Path $outdir 'prop_enclosure.blend')");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_enclosure.blend') -P $S05 -- --out (Join-Path $outdir 'prop_enclosure.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b $LATEST -P $P2 -- --probe_mode ped --probes_per_side 1 --radius 100 --rays_iso 360 --flatten true --clear true --save_as (Join-Path $outdir 'prop_isovist.blend')");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_isovist.blend') -P $S05 -- --out (Join-Path $outdir 'prop_isovist.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b $LATEST -P $P3 -- --probe_mode ped --probes 1 --radius 40 --az 48 --el 12 --tick 0.5 --hits false --clear true --save_as (Join-Path $outdir 'prop_svf.blend')");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_svf.blend') -P $S05 -- --out (Join-Path $outdir 'prop_svf.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b $LATEST -P $P4 -- --lat $lat --lon $lon --date $date --tstart $tstart --tend $tend --tz $tz --north $north --clear true --save_as (Join-Path $outdir 'prop_shade.blend')");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_shade.blend') -P $S05 -- --out (Join-Path $outdir 'prop_shade.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b $LATEST -P $PM -- --out (Join-Path $outdir 'street_metrics.json') --lat $lat --lon $lon --date $date --tstart $tstart --tend $tend --tz $tz --north $north");
+    }
+
+    if (s.pipeline.solweig) {
+      ps.push("$solOut = Join-Path $outdir 'solweig_inputs'");
+      ps.push("if (!(Test-Path $solOut)) { New-Item -ItemType Directory -Path $solOut -Force | Out-Null }");
+      ps.push("& $blender -b $LATEST -P $SOL -- --outdir $solOut --verbose true");
+      ps.push("& $py $SOLTIF --indir $solOut");
+    }
+
+    if (s.pipeline.envimet) {
+      ps.push("$envOut = Join-Path $outdir 'envimet_voxels'");
+      ps.push("if (!(Test-Path $envOut)) { New-Item -ItemType Directory -Path $envOut -Force | Out-Null }");
+      ps.push("& $blender -b $LATEST -P $ENVX -- --outdir $envOut --verbose true");
+    }
+
+    if (s.pipeline.pointcloud) {
+      ps.push("$pcOut = Join-Path $outdir 'pointcloud'");
+      ps.push("if (!(Test-Path $pcOut)) { New-Item -ItemType Directory -Path $pcOut -Force | Out-Null }");
+      ps.push("& $blender -b $LATEST -P $PCX -- --outdir $pcOut --verbose true");
+    }
+
+    return ps.join('\r\n') + '\r\n';
+  }
+
+  function download(name, text, type='application/octet-stream'){ try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 500); }catch(e){ console.warn('Download blocked'); alert('Your browser blocked the download. Copy from the preview instead.'); } }
+
+  function updatePreview(){ const data=buildStreetData(); UI.preview.textContent = JSON.stringify(data, null, 2); }
+  function updatePreviewPS(){ UI.previewPS.textContent = buildPS(); }
+
+  UI.btnJson.addEventListener('click', (e)=>{ e.preventDefault(); const json = JSON.stringify(buildStreetData(), null, 2); download('street_data.json', json, 'application/json'); });
+  UI.btnCopyPS.addEventListener('click', async ()=>{ const text = buildPS(); try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); alert('PowerShell script copied. Open PowerShell in your project folder and paste.'); return; } }catch(e){} const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{ document.execCommand('copy'); alert('PowerShell script copied. Open PowerShell in your project folder and paste.'); }catch(e){ alert('Copy failed. Select the preview and copy manually.'); } document.body.removeChild(ta); });
+  UI.btnReset.addEventListener('click', ()=>{ localStorage.removeItem('streetUIv42'); location.reload(); });
+
+(function init(){
+  const saved=localStorage.getItem('streetUIv42');
+  if(saved){
+    try{
+      const s=JSON.parse(saved);
+      UI.length.value=s.length??80;
+      UI.medianPresent.checked=s.medianPresent??true;
+      UI.median.value=s.medianWidth??1.5;
+      UI.bldgLeftCount.value=s.bldgLeftCount??6;
+      UI.bldgRightCount.value=s.bldgRightCount??6;
+
+      if(s.bldg) document.querySelector(`input[name="bldg"][value="${s.bldg}"]`)?.click();
+      UI.treesLeft.checked=s.treesLeft??true;
+      UI.treesRight.checked=s.treesRight??true;
+      UI.treesMedian.checked=s.treesMedian??false;
+      UI.treesLeftCount.value=s.treesLeftCount??8;
+      UI.treesRightCount.value=s.treesRightCount??8;
+      UI.treesMedianCount.value=s.treesMedianCount??0;
+      UI.driveLeft.value=s.driveLeft??7;
+      UI.driveRight.value=s.driveRight??7;
+      UI.parkLeft.checked=s.parkLeft??true;
+      UI.parkRight.checked=s.parkRight??false;
+      UI.parkLeftW.value=s.parkLeftW??2.2;
+      UI.parkRightW.value=s.parkRightW??2.2;
+      UI.parkedCars.value=s.parkedCars??10;
+      if(s.bike) document.querySelector(`input[name="bike"][value="${s.bike}"]`)?.click();
+      UI.bikeW.value=s.bikeW??2.0;
+      if(s.fp) document.querySelector(`input[name="fp"][value="${s.fp}"]`)?.click();
+      UI.fpW.value=s.fpW??4.0;
+      UI.vegPresent.checked=s.vegPresent??true;
+      UI.vegDensity.value=s.vegDensity??30;
+      UI.movingCars.value=s.movingCars??4;
+      UI.peds.value=s.peds??12;
+      UI.st_model.checked=s.pipeline?.model??true;
+      UI.st_texture.checked=s.pipeline?.texture??true;
+      UI.st_anim.checked=s.pipeline?.animate??true;
+      UI.st_sound.checked=s.pipeline?.sound??false;
+      UI.st_render.checked=s.pipeline?.render??false;
+      UI.st_props.checked=s.pipeline?.props??false;
+      UI.st_solweig.checked=s.pipeline?.solweig??false;
+      UI.st_envimet.checked=s.pipeline?.envimet??false;
+      UI.st_pointcloud.checked=s.pipeline?.pointcloud??false;
+      UI.blender.value=s.paths?.blender??'blender';
+      UI.scripts.value=s.paths?.scripts??'.';
+      UI.outdir.value=s.paths?.outdir??'.';
+      UI.outname.value=s.paths?.outname??'';
+      if(s.rendermode) document.querySelector(`input[name="rendermode"][value="${s.rendermode}"]`)?.click();
+    }catch(e){}
+  }
+  setReadouts();
+  sync();
+})();
+
+</script>
+</body>
+</html>

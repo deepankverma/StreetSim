@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "street-vlm"
+version = "0.1.0"
+description = "Street-view image to street_data.json via Ollama VLM"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31.0",
+  "pydantic>=2.7.0"
+]
+
+[tool.setuptools]
+packages = ["street_vlm"]

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Local commands and generated scene config
+command.txt
+street_data.json
+
+# Generated outputs
+out*/
+outputs/
+*.blend
+*.blend1
+*.mp4
+*.mov
+*.avi
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.asc
+*.npy
+*.npz
+*.ply
+*.csv
+*.json.gz
+
+# Heavy asset folders kept outside git
+cars/
+people/
+lamp/
+mixamo_fbx/
+textures/
+sounds/
+tokyo_str_view_images/
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
