@@ -16,17 +16,23 @@ from __future__ import annotations
 from pathlib import Path
 import gzip
 import json
-from typing import Iterable
-
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 
 DEFAULT_COLORS = {
-    "buildings_3d": "#4c78a8",
-    "canopy_3d": "#54a24b",
-    "woody_3d": "#8c6d31",
+    "buildings_3d": "#d8b889",
+    "canopy_3d": "#63c94f",
+    "woody_3d": "#6f4e2a",
     "solid_3d": "#7f7f7f",
+}
+
+SOLID_LAYER_COLORS = {
+    "building": DEFAULT_COLORS["buildings_3d"],
+    "canopy": DEFAULT_COLORS["canopy_3d"],
+    "woody": DEFAULT_COLORS["woody_3d"],
+    "other": DEFAULT_COLORS["solid_3d"],
 }
 
 
@@ -91,6 +97,31 @@ def _infer_facecolors(mask_xyz: np.ndarray, color: str | np.ndarray | None = Non
     raise ValueError("color array must have the same shape as the voxel mask")
 
 
+def _downsample_color_array(color: np.ndarray, stride: tuple[int, int, int] | None) -> np.ndarray:
+    if stride is None:
+        return color
+    sz, sy, sx = stride
+    return color[::max(1, sz), ::max(1, sy), ::max(1, sx)]
+
+
+def _solid_layer_facecolors(indir: str | Path, solid_zyx: np.ndarray) -> np.ndarray | None:
+    try:
+        buildings, _ = load_envimet_array(indir, "buildings_3d")
+        canopy, _ = load_envimet_array(indir, "canopy_3d")
+        woody, _ = load_envimet_array(indir, "woody_3d")
+    except (FileNotFoundError, KeyError):
+        return None
+
+    if buildings.shape != solid_zyx.shape or canopy.shape != solid_zyx.shape or woody.shape != solid_zyx.shape:
+        return None
+
+    colors = np.full(solid_zyx.shape, SOLID_LAYER_COLORS["other"], dtype=object)
+    colors[np.asarray(canopy).astype(bool)] = SOLID_LAYER_COLORS["canopy"]
+    colors[np.asarray(woody).astype(bool)] = SOLID_LAYER_COLORS["woody"]
+    colors[np.asarray(buildings).astype(bool)] = SOLID_LAYER_COLORS["building"]
+    return colors
+
+
 
 def visualize_voxels_interactive(
     voxels_zyx: np.ndarray,
@@ -105,6 +136,10 @@ def visualize_voxels_interactive(
     azim: float = -58.0,
     max_voxels: int = 120000,
     stride: tuple[int, int, int] | None = None,
+    legend: dict[str, str] | None = None,
+    hide_axes: bool = True,
+    zoom_to_occupied: bool = True,
+    zoom_padding: float = 1.5,
 ) -> tuple[plt.Figure, plt.Axes]:
     """Open an interactive 3D voxel window.
 
@@ -117,12 +152,16 @@ def visualize_voxels_interactive(
     title:
         Figure title.
     color:
-        Solid color string, or an array matching the voxel mask after transpose.
+        Solid color string, or an array matching the voxel mask in z,y,x or x,y,z order.
     max_voxels:
         Safety cap for dense scenes. If occupied voxels exceed this and stride is
         not provided, the array is automatically downsampled.
     stride:
         Optional downsampling stride as (sz, sy, sx). Example: (1,2,2).
+    hide_axes:
+        Hide axis panes, ticks, and labels for a cleaner object-style view.
+    zoom_to_occupied:
+        Set the camera limits around occupied voxels instead of the whole grid.
 
     Returns
     -------
@@ -141,15 +180,36 @@ def visualize_voxels_interactive(
     if occupied == 0:
         raise ValueError("The voxel grid is empty; there is nothing to display.")
 
+    color_arr = None
+    color_order = None
+    if color is not None and not isinstance(color, str):
+        color_arr = np.asarray(color)
+        if color_arr.shape != arr.shape:
+            transposed_shape = (arr.shape[2], arr.shape[1], arr.shape[0])
+            if color_arr.shape != transposed_shape:
+                raise ValueError("color array must match the voxel mask in z,y,x or x,y,z order")
+            color_order = "xyz"
+        else:
+            color_order = "zyx"
+
     if stride is None and occupied > max_voxels:
         factor = int(np.ceil((occupied / max_voxels) ** (1.0 / 3.0)))
         stride = (factor, factor, factor)
     if stride is not None:
         sz, sy, sx = stride
         mask = mask[::max(1, sz), ::max(1, sy), ::max(1, sx)]
+        if color_arr is not None and color_order == "zyx":
+            color_arr = _downsample_color_array(color_arr, stride)
+        elif color_arr is not None and color_order == "xyz":
+            color_arr = color_arr[::max(1, sx), ::max(1, sy), ::max(1, sz)]
 
     # Convert from (z, y, x) to (x, y, z) for matplotlib.voxels
     mask_xyz = np.transpose(mask, (2, 1, 0))
+    if color_arr is not None:
+        if color_order == "zyx":
+            color = np.transpose(color_arr, (2, 1, 0))
+        else:
+            color = color_arr
     dx, dy, dz = voxel_size
 
     # Create grid corner coordinates so non-cubic voxels render with correct proportions
@@ -174,11 +234,38 @@ def visualize_voxels_interactive(
         alpha=alpha,
     )
     ax.set_title(title)
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
+
+    xlim = (0.0, max(dx * nx, 1e-6))
+    ylim = (0.0, max(dy * ny, 1e-6))
+    zlim = (0.0, max(dz * nz, 1e-6))
+    if zoom_to_occupied:
+        occupied_xyz = np.argwhere(mask_xyz)
+        if occupied_xyz.size:
+            lo = occupied_xyz.min(axis=0).astype(float)
+            hi = occupied_xyz.max(axis=0).astype(float) + 1.0
+            pad = max(0.0, float(zoom_padding))
+            xlim = (max(0.0, (lo[0] - pad) * dx), min(dx * nx, (hi[0] + pad) * dx))
+            ylim = (max(0.0, (lo[1] - pad) * dy), min(dy * ny, (hi[1] + pad) * dy))
+            zlim = (max(0.0, (lo[2] - pad) * dz), min(dz * nz, (hi[2] + pad) * dz))
+
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    ax.set_zlim(*zlim)
+    if legend:
+        handles = [Patch(facecolor=value, edgecolor=edgecolor, label=key) for key, value in legend.items()]
+        ax.legend(handles=handles, loc="upper right")
+    if hide_axes:
+        ax.set_axis_off()
+    else:
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
     ax.view_init(elev=elev, azim=azim)
-    ax.set_box_aspect((max(dx * nx, 1e-6), max(dy * ny, 1e-6), max(dz * nz, 1e-6)))
+    ax.set_box_aspect((
+        max(xlim[1] - xlim[0], 1e-6),
+        max(ylim[1] - ylim[0], 1e-6),
+        max(zlim[1] - zlim[0], 1e-6),
+    ))
     plt.tight_layout()
     plt.show()
     return fig, ax
@@ -189,9 +276,12 @@ def visualize_envimet_array(
     indir: str | Path,
     array_name: str = "solid_3d",
     *,
-    color: str | None = None,
+    color: str | np.ndarray | None = None,
     max_voxels: int = 120000,
     stride: tuple[int, int, int] | None = None,
+    hide_axes: bool = True,
+    zoom_to_occupied: bool = True,
+    zoom_padding: float = 1.5,
 ) -> tuple[plt.Figure, plt.Axes]:
     """Load one ENVI-met 3D array from disk and display it interactively."""
     arr, meta = load_envimet_array(indir, array_name)
@@ -202,8 +292,19 @@ def visualize_envimet_array(
     dx = float(grid.get("dx", 1.0))
     dy = float(grid.get("dy", 1.0))
     dz = float(grid.get("dz", 1.0))
+    legend = None
     if color is None:
-        color = DEFAULT_COLORS.get(array_name, "#7f7f7f")
+        if array_name == "solid_3d":
+            color = _solid_layer_facecolors(indir, arr)
+            if color is not None:
+                legend = {
+                    "buildings": SOLID_LAYER_COLORS["building"],
+                    "canopy": SOLID_LAYER_COLORS["canopy"],
+                    "woody/trunks": SOLID_LAYER_COLORS["woody"],
+                    "other solid": SOLID_LAYER_COLORS["other"],
+                }
+        if color is None:
+            color = DEFAULT_COLORS.get(array_name, "#7f7f7f")
 
     return visualize_voxels_interactive(
         arr,
@@ -212,6 +313,10 @@ def visualize_envimet_array(
         color=color,
         max_voxels=max_voxels,
         stride=stride,
+        legend=legend,
+        hide_axes=hide_axes,
+        zoom_to_occupied=zoom_to_occupied,
+        zoom_padding=zoom_padding,
     )
 
 
@@ -224,6 +329,9 @@ if __name__ == "__main__":
     ap.add_argument("--color", help="Optional matplotlib color")
     ap.add_argument("--max-voxels", type=int, default=120000)
     ap.add_argument("--stride", help="Optional stride as sz,sy,sx e.g. 1,2,2")
+    ap.add_argument("--show-axes", action="store_true", help="Show axes, ticks, and labels")
+    ap.add_argument("--no-zoom", action="store_true", help="Use full grid bounds instead of occupied voxel bounds")
+    ap.add_argument("--zoom-padding", type=float, default=1.5, help="Padding around occupied voxels, in cells")
     ns = ap.parse_args()
 
     stride = None
@@ -239,4 +347,7 @@ if __name__ == "__main__":
         color=ns.color,
         max_voxels=ns.max_voxels,
         stride=stride,
+        hide_axes=not ns.show_axes,
+        zoom_to_occupied=not ns.no_zoom,
+        zoom_padding=ns.zoom_padding,
     )

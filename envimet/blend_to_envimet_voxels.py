@@ -127,19 +127,25 @@ def is_building(obj) -> bool:
     return "building" in _name(obj) or is_roof(obj)
 
 
-def is_woody(obj) -> bool:
-    nm = _name(obj)
-    return any(t in nm for t in ("_wood", "trunk", "branch")) or (nm.startswith("tree_") and "leaves" not in nm)
-
-
 def is_canopy(obj) -> bool:
     nm = _name(obj)
-    return any(t in nm for t in ("leaf", "leaves", "canopy", "foliage")) or (nm.startswith("tree_") and "leaves" in nm)
+    return any(t in nm for t in ("leaf", "leaves", "canopy", "foliage"))
+
+
+def is_woody(obj) -> bool:
+    nm = _name(obj)
+    if is_canopy(obj):
+        return False
+    return any(t in nm for t in ("_wood", "trunk", "branch", "stem", "bark")) or nm.startswith("tree_")
+
+
+def is_low_vegetation(obj) -> bool:
+    nm = _name(obj)
+    return any(t in nm for t in ("shrub", "grass", "vegetation", "plant"))
 
 
 def is_veg(obj) -> bool:
-    nm = _name(obj)
-    return is_canopy(obj) or is_woody(obj) or any(t in nm for t in ("shrub", "grass", "vegetation", "plant"))
+    return is_canopy(obj) or is_woody(obj) or is_low_vegetation(obj)
 
 
 def is_ground(obj, keep_ground_buffer: bool = True) -> bool:
@@ -219,6 +225,23 @@ class SceneClassifier:
                 break
         return Hit(False)
 
+    def cast_down_hits(self, origin: Vector, max_dist: float, max_hops: int = 256, eps: float = 1e-4) -> list[Hit]:
+        hits: list[Hit] = []
+        start = origin.copy()
+        remain = float(max_dist)
+        for _ in range(max_hops):
+            hit, loc, _norm, _face_idx, obj, _mat = self.scene.ray_cast(self.deps, start, Vector((0, 0, -1)), distance=remain)
+            if not hit:
+                break
+            if self.static_mesh(obj):
+                hits.append(Hit(True, loc, obj))
+            step = max((start.z - loc.z) + eps, eps)
+            start = Vector((start.x, start.y, loc.z - eps))
+            remain -= step
+            if remain <= 0:
+                break
+        return hits
+
 
 def _new_2d(rows: int, cols: int, value=0):
     return [[value for _ in range(cols)] for _ in range(rows)]
@@ -226,6 +249,13 @@ def _new_2d(rows: int, cols: int, value=0):
 
 def _new_3d(layers: int, rows: int, cols: int):
     return [[[0 for _ in range(cols)] for _ in range(rows)] for _ in range(layers)]
+
+
+def _first_hit(hits: list[Hit], predicate) -> Hit:
+    for hit in hits:
+        if predicate(hit.obj):
+            return hit
+    return Hit(False)
 
 
 def _fill_column(grid: list[list[list[int]]], row: int, col: int, z0: float, dz: float, bottom: float, top: float) -> int:
@@ -240,6 +270,85 @@ def _fill_column(grid: list[list[list[int]]], row: int, col: int, z0: float, dz:
         if bottom <= center <= top:
             grid[k][row][col] = 1
             count += 1
+    return count
+
+
+def _mark_interval(grid: list[list[list[int]]], row: int, col: int, z0: float, dz: float, bottom: float, top: float) -> int:
+    if top <= bottom:
+        return 0
+    layers = len(grid)
+    start = max(0, int(math.floor((bottom - z0) / dz)))
+    end = min(layers - 1, int(math.ceil((top - z0) / dz) - 1))
+    count = 0
+    for k in range(start, end + 1):
+        voxel_bottom = z0 + k * dz
+        voxel_top = voxel_bottom + dz
+        if voxel_top <= bottom or voxel_bottom >= top:
+            continue
+        if grid[k][row][col] == 0:
+            grid[k][row][col] = 1
+            count += 1
+    return count
+
+
+def _grid_range_from_bounds(min_value: float, max_value: float, origin: float, cell: float, count: int) -> tuple[int, int] | None:
+    start = max(0, int(math.floor((min_value - origin) / cell)))
+    end = min(count - 1, int(math.ceil((max_value - origin) / cell) - 1))
+    if end < start:
+        return None
+    return start, end
+
+
+def _row_range_from_y_bounds(min_y: float, max_y: float, y_top: float, dy: float, rows: int) -> tuple[int, int] | None:
+    start = max(0, int(math.floor((y_top - max_y) / dy)))
+    end = min(rows - 1, int(math.ceil((y_top - min_y) / dy) - 1))
+    if end < start:
+        return None
+    return start, end
+
+
+def _fill_vegetation_bboxes(
+    grid: list[list[list[int]]],
+    top_2d: list[list[float]],
+    dem_2d: list[list[float]],
+    objects,
+    x0: float,
+    y1: float,
+    z0: float,
+    dx: float,
+    dy: float,
+    dz: float,
+    min_top_height: float,
+) -> int:
+    """Voxelize vegetation as blocky plant volumes instead of solid columns.
+
+    ENVI-met-style vegetation is porous plant volume. At the coarse grid sizes
+    used here, object bounding-box overlap gives a useful blocky crown/trunk
+    representation without extruding every tree column from ground to top.
+    """
+    rows = len(dem_2d)
+    cols = len(dem_2d[0]) if rows else 0
+    count = 0
+    for obj in objects:
+        mn, mx = _world_bbox(obj)
+        if mx.z <= mn.z:
+            continue
+        col_range = _grid_range_from_bounds(mn.x, mx.x, x0, dx, cols)
+        row_range = _row_range_from_y_bounds(mn.y, mx.y, y1, dy, rows)
+        if col_range is None or row_range is None:
+            continue
+        c0, c1 = col_range
+        r0, r1 = row_range
+
+        for row in range(r0, r1 + 1):
+            for col in range(c0, c1 + 1):
+                ground_z = float(dem_2d[row][col])
+                top_h = float(mx.z - ground_z)
+                if top_h < min_top_height:
+                    continue
+                top_2d[row][col] = max(float(top_2d[row][col]), top_h)
+                count += _mark_interval(grid, row, col, z0, dz, max(float(mn.z), ground_z), float(mx.z))
+
     return count
 
 
@@ -314,6 +423,8 @@ def main() -> int:
     woody_3d = _new_3d(nz, ny, nx)
 
     counts = {"building_cells": 0, "canopy_cells": 0, "woody_cells": 0}
+    canopy_objects = [obj for obj in extent_objs if is_canopy(obj) or is_low_vegetation(obj)]
+    woody_objects = [obj for obj in extent_objs if is_woody(obj)]
 
     for row in range(ny):
         y = y1 - (row + 0.5) * dy
@@ -323,12 +434,10 @@ def main() -> int:
             x = x0 + (col + 0.5) * dx
             origin = Vector((x, y, z_top))
 
-            top_hit = classifier.cast_down_until(origin, lambda o: classifier.static_mesh(o), max_dist)
-            ground_hit = classifier.cast_down_until(origin, lambda o: is_ground(o, classifier.keep_ground_buffer), max_dist)
-            building_hit = classifier.cast_down_until(origin, is_building, max_dist)
-            canopy_hit = classifier.cast_down_until(origin, is_canopy, max_dist)
-            woody_hit = classifier.cast_down_until(origin, is_woody, max_dist)
-            veg_hit = classifier.cast_down_until(origin, is_veg, max_dist)
+            hits = classifier.cast_down_hits(origin, max_dist)
+            top_hit = hits[0] if hits else Hit(False)
+            ground_hit = _first_hit(hits, lambda o: is_ground(o, classifier.keep_ground_buffer))
+            building_hit = _first_hit(hits, is_building)
 
             ground_z = float(ground_hit.location.z) if ground_hit.ok else z0
             dem_2d[row][col] = ground_z
@@ -343,25 +452,39 @@ def main() -> int:
                 building_top_2d[row][col] = max(0.0, building_top - ground_z)
                 counts["building_cells"] += _fill_column(buildings_3d, row, col, z0, dz, ground_z, building_top)
 
-            if canopy_hit.ok:
-                canopy_top = float(canopy_hit.location.z)
-                h = max(0.0, canopy_top - ground_z)
-                if h >= float(args["canopy_min_height"]):
-                    canopy_top_2d[row][col] = h
-                    counts["canopy_cells"] += _fill_column(canopy_3d, row, col, z0, dz, ground_z, canopy_top)
-            elif veg_hit.ok:
-                veg_top = float(veg_hit.location.z)
-                h = max(0.0, veg_top - ground_z)
-                if h >= float(args["canopy_min_height"]):
-                    canopy_top_2d[row][col] = h
-                    counts["canopy_cells"] += _fill_column(canopy_3d, row, col, z0, dz, ground_z, veg_top)
-
-            if woody_hit.ok:
-                woody_top = float(woody_hit.location.z)
-                h = max(0.0, woody_top - ground_z)
-                if h >= float(args["woody_min_height"]):
-                    woody_top_2d[row][col] = h
-                    counts["woody_cells"] += _fill_column(woody_3d, row, col, z0, dz, ground_z, woody_top)
+    counts["canopy_cells"] += _fill_vegetation_bboxes(
+        canopy_3d,
+        canopy_top_2d,
+        dem_2d,
+        canopy_objects,
+        x0,
+        y1,
+        z0,
+        dx,
+        dy,
+        dz,
+        float(args["canopy_min_height"]),
+    )
+    counts["woody_cells"] += _fill_vegetation_bboxes(
+        woody_3d,
+        woody_top_2d,
+        dem_2d,
+        woody_objects,
+        x0,
+        y1,
+        z0,
+        dx,
+        dy,
+        dz,
+        float(args["woody_min_height"]),
+    )
+    for row in range(ny):
+        for col in range(nx):
+            ground_z = float(dem_2d[row][col])
+            if canopy_top_2d[row][col] > 0.0:
+                top_2d[row][col] = max(float(top_2d[row][col]), ground_z + float(canopy_top_2d[row][col]))
+            if woody_top_2d[row][col] > 0.0:
+                top_2d[row][col] = max(float(top_2d[row][col]), ground_z + float(woody_top_2d[row][col]))
 
     solid_3d = _new_3d(nz, ny, nx)
     for k in range(nz):
@@ -434,6 +557,14 @@ def main() -> int:
             "3": "bare_soil",
         },
         "settings": {k: v for k, v in args.items() if k != "outdir"},
+        "methods": {
+            "building_voxelization": "solid_columns_from_ground_to_building_top",
+            "vegetation_voxelization": "per_object_bounding_box_overlap",
+            "vegetation_layers": {
+                "canopy_3d": "leaf_canopy_foliage_shrub_grass_plant_cells",
+                "woody_3d": "trunk_branch_wood_stem_bark_cells",
+            },
+        },
         "counts": counts,
         "files": files,
     }

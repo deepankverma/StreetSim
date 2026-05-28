@@ -33,12 +33,12 @@ CLASS_LEGEND = {
 }
 
 CLASS_RGB = {
-    0: (180, 180, 180),
-    1: (160, 120, 80),
-    2: (200, 80, 80),
-    3: (220, 120, 120),
-    4: (60, 170, 70),
-    5: (120, 80, 40),
+    0: (255, 0, 180),
+    1: (235, 235, 225),
+    2: (216, 184, 137),
+    3: (196, 156, 108),
+    4: (99, 201, 79),
+    5: (111, 78, 42),
     6: (70, 110, 220),
     7: (230, 200, 60),
     8: (180, 120, 220),
@@ -160,14 +160,16 @@ def is_building(obj) -> bool:
     return "building" in _name(obj) and not is_roof(obj)
 
 
-def is_woody(obj) -> bool:
-    nm = _name(obj)
-    return any(t in nm for t in ("_wood", "trunk", "branch")) or (nm.startswith("tree_") and "leaves" not in nm)
-
-
 def is_canopy(obj) -> bool:
     nm = _name(obj)
-    return any(t in nm for t in ("leaf", "leaves", "canopy", "foliage")) or (nm.startswith("tree_") and "leaves" in nm)
+    return any(t in nm for t in ("leaf", "leaves", "canopy", "foliage"))
+
+
+def is_woody(obj) -> bool:
+    nm = _name(obj)
+    if is_canopy(obj):
+        return False
+    return any(t in nm for t in ("_wood", "trunk", "branch", "stem", "bark")) or nm.startswith("tree_")
 
 
 def is_water(obj) -> bool:
@@ -270,13 +272,20 @@ def _write_ply_ascii(path: Path, points: list[dict]) -> None:
             "property uchar class_id", "property int object_id",
             "property uchar return_number", "property ushort scan_id",
             "property uchar intensity",
+            "property float classification",
+            "property float class_id_sf",
+            "property float object_id_sf",
+            "property float return_number_sf",
+            "property float scan_id_sf",
         ):
             f.write(prop + "\n")
         f.write("end_header\n")
         for p in points:
             f.write(
                 f"{p['x']:.6f} {p['y']:.6f} {p['z']:.6f} {p['nx']:.6f} {p['ny']:.6f} {p['nz']:.6f} "
-                f"{p['red']} {p['green']} {p['blue']} {p['class_id']} {p['object_id']} {p['return_number']} {p['scan_id']} {p['intensity']}\n"
+                f"{p['red']} {p['green']} {p['blue']} {p['class_id']} {p['object_id']} {p['return_number']} {p['scan_id']} {p['intensity']} "
+                f"{float(p['class_id']):.1f} {float(p['class_id']):.1f} {float(p['object_id']):.1f} "
+                f"{float(p['return_number']):.1f} {float(p['scan_id']):.1f}\n"
             )
 
 

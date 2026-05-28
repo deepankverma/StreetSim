@@ -219,16 +219,25 @@ def is_building(obj) -> bool:
     return any(t in nm for t in ("building", "roof"))
 
 
+def is_canopy(obj) -> bool:
+    nm = _name(obj)
+    return any(t in nm for t in ("leaf", "leaves", "canopy", "foliage"))
+
+
 def is_tree_woody(obj) -> bool:
     nm = _name(obj)
-    return any(t in nm for t in ("_wood", "trunk", "branch")) or (nm.startswith("tree_") and "leaves" not in nm)
+    if is_canopy(obj):
+        return False
+    return any(t in nm for t in ("_wood", "trunk", "branch", "stem", "bark")) or nm.startswith("tree_")
+
+
+def is_low_vegetation(obj) -> bool:
+    nm = _name(obj)
+    return any(t in nm for t in ("shrub", "grass", "vegetation", "plant"))
 
 
 def is_veg(obj) -> bool:
-    nm = _name(obj)
-    return any(t in nm for t in (
-        "tree", "leaf", "leaves", "shrub", "grass", "vegetation", "plant", "branch", "trunk", "_wood"
-    ))
+    return is_canopy(obj) or is_tree_woody(obj) or is_low_vegetation(obj)
 
 
 def is_ground(obj, keep_ground_buffer: bool = True) -> bool:
@@ -496,9 +505,9 @@ def main() -> int:
                 lambda o: is_ground(o, classifier.keep_ground_buffer),
                 max_dist=max_dist,
             )
-            veg_hit = classifier.cast_down_until(
+            canopy_hit = classifier.cast_down_until(
                 origin,
-                lambda o: is_veg(o),
+                lambda o: is_canopy(o) or is_low_vegetation(o),
                 max_dist=max_dist,
             )
             woody_hit = classifier.cast_down_until(
@@ -523,8 +532,8 @@ def main() -> int:
             if building_hit.ok and dsm_hit.ok and dsm_hit.obj == building_hit.obj:
                 building_mask[row][col] = 1.0
 
-            if veg_hit.ok:
-                canopy_h = max(0.0, float(veg_hit.location.z - dem_z))
+            if canopy_hit.ok:
+                canopy_h = max(0.0, float(canopy_hit.location.z - dem_z))
                 if canopy_h >= float(args["cdsm_min_height"]):
                     cdsm[row][col] = canopy_h
 
@@ -556,8 +565,8 @@ def main() -> int:
 
     write_ascii_grid(outdir / "dsm.asc", dsm, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=nodata)
     write_ascii_grid(outdir / "dem.asc", dem, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=nodata)
-    write_ascii_grid(outdir / "cdsm.asc", cdsm, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=0.0)
-    write_ascii_grid(outdir / "tdsm.asc", tdsm, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=0.0)
+    write_ascii_grid(outdir / "cdsm.asc", cdsm, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=nodata)
+    write_ascii_grid(outdir / "tdsm.asc", tdsm, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=nodata)
     write_ascii_grid(outdir / "building_mask.asc", building_mask, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=0.0)
     write_ascii_grid(outdir / "landcover.asc", landcover, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=nodata)
     write_ascii_grid(outdir / "wall_height.asc", wall_height, xllcorner=xllcorner_geo, yllcorner=yllcorner_geo, cellsize=cell, nodata=0.0)

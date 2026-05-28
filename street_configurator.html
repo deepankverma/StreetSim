@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Street Configurator (v4.2 — PowerShell + post-processing toggles)</title>
+  <title>Street Configurator (PowerShell + post-processing toggles)</title>
   <style>
-    :root{ --bg:#0b0d10; --card:#12161a; --muted:#9ab; --text:#eaf2ff; --acc:#5dd; --line:#1f2630; --btn:#1a9; --btnText:#041; }
+    :root{ --bg:#fff; --card:#f7f9fb; --muted:#607080; --text:#16202a; --acc:#087f7a; --line:#d8e0e8; --btn:#0f9f8d; --btnText:#fff; }
     *{box-sizing:border-box}
+    html,body{background:#fff}
     body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial}
     .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
     h1{font-size:24px;margin:0 0 12px}
@@ -24,7 +25,7 @@
     button.primary{background:var(--btn);color:var(--btnText);border:none;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
     button.ghost{background:transparent;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
     button.subtle{background:transparent;color:var(--muted);border:1px dashed var(--line);border-radius:12px;padding:8px 12px;cursor:pointer}
-    pre{background:#0a0d11;border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;max-height:460px}
+    pre{background:#101820;color:#eaf2ff;border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;max-height:460px}
     .hint{color:var(--muted);font-size:13px;margin-top:6px}
     .inline{display:inline-flex;gap:8px;align-items:center}
     .badge{border:1px solid var(--line);padding:2px 8px;border-radius:999px;color:var(--muted);font-size:12px}
@@ -34,8 +35,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Street Configurator <span class="badge">v4.2</span></h1>
-  <p class="sub">All controls on one page. Copy a PowerShell pipeline that writes <code>street_data.json</code> from the current form values, runs Blender stages, and can optionally create street properties, SOLWEIG rasters, ENVI-met voxels, and a point cloud.</p>
+  <h1>Street Configurator </h1>
+  <p class="sub">Copy a PowerShell pipeline that writes <code>street_data.json</code> from the current form values, runs Blender stages, and can optionally create street properties, SOLWEIG rasters, ENVI-met voxels, and a point cloud.</p>
 
   <section class="card grid">
     <div class="cols">
@@ -169,8 +170,8 @@
           </div>
         </div>
         <div class="row"><label>Blender command</label><input id="blender" type="text" value="blender" /></div>
-        <div class="row"><label>Scripts folder</label><input id="scripts" type="text" placeholder="C:\\path\\to\\scripts" /></div>
-        <div class="row"><label>Output folder</label><input id="outdir" type="text" placeholder="C:\\out" /></div>
+        <div class="row"><label>Scripts folder</label><input id="scripts" type="text" placeholder="C:\\path\\to\\procedural" /></div>
+        <div class="row"><label>Output folder</label><input id="outdir" type="text" placeholder="C:\\path\\to\\out_folder" /></div>
         <div class="row"><label>Output file name</label><input id="outname" type="text" placeholder="spin.mp4 / still.png" /></div>
       </fieldset>
 

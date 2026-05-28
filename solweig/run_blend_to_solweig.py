@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Iterable
 
 
+THIS_DIR = Path(__file__).resolve().parent
+
+
 def quote_cmd(parts: Iterable[object]) -> str:
     return " ".join(shlex.quote(str(p)) for p in parts)
 
@@ -31,7 +34,10 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--blend", required=True, help="Input .blend file")
     ap.add_argument("--outdir", required=True, help="Output directory")
     ap.add_argument("--blender", default="blender", help="Blender executable path")
-    ap.add_argument("--scripts-dir", default=".", help="Folder containing solweig_export_rasters.py")
+    ap.add_argument(
+        "--scripts-dir",
+        help="Folder containing solweig_export_rasters.py. Defaults to this script's folder.",
+    )
     ap.add_argument("--cellsize", type=float, default=1.0)
     ap.add_argument("--padding", type=float, default=2.0)
     ap.add_argument("--origin-x", type=float)
@@ -49,13 +55,24 @@ def parse_args() -> argparse.Namespace:
     return ap.parse_args()
 
 
+def find_script(scripts_dir: Path, name: str) -> Path:
+    for candidate in (
+        scripts_dir / name,
+        scripts_dir / "solweig" / name,
+        THIS_DIR / name,
+    ):
+        if candidate.exists():
+            return candidate
+    return scripts_dir / name
+
+
 def main() -> int:
     args = parse_args()
     blend = Path(args.blend).expanduser().resolve()
     outdir = Path(args.outdir).expanduser().resolve()
-    scripts_dir = Path(args.scripts_dir).expanduser().resolve()
-    exporter = scripts_dir / "solweig_export_rasters.py"
-    converter = scripts_dir / "solweig_ascii_to_geotiff.py"
+    scripts_dir = Path(args.scripts_dir).expanduser().resolve() if args.scripts_dir else THIS_DIR
+    exporter = find_script(scripts_dir, "solweig_export_rasters.py")
+    converter = find_script(scripts_dir, "solweig_ascii_to_geotiff.py")
 
     if not blend.exists():
         print(f"Error: missing blend: {blend}", file=sys.stderr)

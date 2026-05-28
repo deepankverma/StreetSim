@@ -47,6 +47,7 @@ mixamo_fbx/
 textures/
 sounds/
 tokyo_str_view_images/
+figures/
 
 # OS/editor clutter
 .DS_Store
