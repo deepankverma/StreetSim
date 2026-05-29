@@ -1,4 +1,4 @@
-# StreetSim
+# StreetSim [README under Preparation]
 
 This project turns a street-view image into a procedural Blender street scene.
 It can also render the scene and export analysis products such as property
@@ -37,10 +37,10 @@ ollama pull llava:34b
 ## Asset Pack
 
 The large Blender assets are not included in this repository. Download the
-asset pack from this temporary placeholder link:
+asset pack zip from this Google Drive folder:
 
 ```text
-https://example.com/streetsim-assets.zip
+https://drive.google.com/drive/folders/1hoYmdT2WJjhzd2ToD6f_T3pxULqlgokT?usp=sharing
 ```
 
 Extract the archive into the project root so the asset folders sit alongside
