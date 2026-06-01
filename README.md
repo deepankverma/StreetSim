@@ -5,9 +5,10 @@ It also exports analysis products such as property
 visualizations, SOLWEIG rasters, ENVI-met voxel grids, and an
 airborne-style point cloud.
 
-<img src="images/Methodology.jpg" alt="StreetSim methodology overview" width="75%">
-
-*Overall methodology*
+<p align="center">
+  <img src="images/Methodology.jpg" alt="StreetSim methodology overview" width="75%">
+</p>
+<p align="center"><em>Overall methodology</em></p>
 
 ## Setup
 
@@ -82,9 +83,10 @@ standard subfolders automatically.
 | `pointcloud/` | Airborne-style point-cloud export |
 | `cars/`, `people/`, `lamp/`, `mixamo_fbx/`, `textures/`, `sounds/` | Downloaded asset folders used by Blender stages |
 
-![Blender scene generation method](images/Blender_method.jpg)
-
-*Blender pipeline*
+<p align="center">
+  <img src="images/Blender_method.jpg" alt="Blender scene generation method">
+</p>
+<p align="center"><em>Blender pipeline</em></p>
 
 ## Full Pipeline
 
@@ -230,9 +232,10 @@ Run only selected property images:
 --properties enclosure,shade
 ```
 
-![Street property analysis outputs](images/Properties.jpg)
-
-*Street metrics calculation and visualization*
+<p align="center">
+  <img src="images/Properties.jpg" alt="Street property analysis outputs">
+</p>
+<p align="center"><em>Street metrics calculation and visualization</em></p>
 
 ## SOLWEIG Export
 
@@ -265,9 +268,10 @@ Convert the SOLWEIG ASCII grids to GeoTIFF after export:
 python "%PROJECT_DIR%\solweig\solweig_ascii_to_geotiff.py" --indir "%OUT_DIR%\solweig_inputs"
 ```
 
-<img src="images/Other_outputs.jpg" alt="SOLWEIG, ENVI-met, and point-cloud outputs" width="75%">
-
-*Outputs for climate-specific models and point cloud exports*
+<p align="center">
+  <img src="images/Other_outputs.jpg" alt="SOLWEIG, ENVI-met, and point-cloud outputs" width="75%">
+</p>
+<p align="center"><em>Outputs for climate-specific models and point cloud exports</em></p>
 
 ## ENVI-met Voxel Export
 
