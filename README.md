@@ -1,11 +1,13 @@
-# StreetSim v1 [README under Preparation]
+# StreetSim v1 
 
 This project is aimed at generating procedural Blender street scenes.
 It also exports analysis products such as property
 visualizations, SOLWEIG rasters, ENVI-met voxel grids, and an
 airborne-style point cloud.
 
-![StreetSim methodology overview](images/Methodology.jpg)
+<img src="images/Methodology.jpg" alt="StreetSim methodology overview" width="75%">
+
+*Overall methodology*
 
 ## Setup
 
@@ -81,6 +83,8 @@ standard subfolders automatically.
 | `cars/`, `people/`, `lamp/`, `mixamo_fbx/`, `textures/`, `sounds/` | Downloaded asset folders used by Blender stages |
 
 ![Blender scene generation method](images/Blender_method.jpg)
+
+*Blender pipeline*
 
 ## Full Pipeline
 
@@ -228,6 +232,8 @@ Run only selected property images:
 
 ![Street property analysis outputs](images/Properties.jpg)
 
+*Street metrics calculation and visualization*
+
 ## SOLWEIG Export
 
 SOLWEIG export is enabled by default. Disable it with:
@@ -259,7 +265,9 @@ Convert the SOLWEIG ASCII grids to GeoTIFF after export:
 python "%PROJECT_DIR%\solweig\solweig_ascii_to_geotiff.py" --indir "%OUT_DIR%\solweig_inputs"
 ```
 
-![SOLWEIG, ENVI-met, and point-cloud outputs](images/Other_outputs.jpg)
+<img src="images/Other_outputs.jpg" alt="SOLWEIG, ENVI-met, and point-cloud outputs" width="75%">
+
+*Outputs for climate-specific models and point cloud exports*
 
 ## ENVI-met Voxel Export
 
