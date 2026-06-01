@@ -5,6 +5,8 @@ It can also render the scene and export analysis products such as property
 visualizations, metrics JSON, SOLWEIG rasters, ENVI-met voxel grids, and an
 airborne-style point cloud.
 
+![StreetSim methodology overview](images/Methodology.jpg)
+
 ## Setup
 
 Install the VLM/Python dependencies in the Anaconda environment you use for the
@@ -78,6 +80,8 @@ standard subfolders automatically.
 | `pointcloud/` | Airborne-style point-cloud export |
 | `cars/`, `people/`, `lamp/`, `mixamo_fbx/`, `textures/`, `sounds/` | Downloaded asset folders used by Blender stages |
 | `tokyo_str_view_images/` | Example input street-view images |
+
+![Blender scene generation method](images/Blender_method.jpg)
 
 ## Full Pipeline
 
@@ -244,6 +248,8 @@ Tokyo example:
 --lat 35.80446 --lon 139.72221 --tz 9 --date 2025-06-21
 ```
 
+![Street property analysis outputs](images/Properties.jpg)
+
 ## SOLWEIG Export
 
 SOLWEIG export is enabled by default. Disable it with:
@@ -274,6 +280,8 @@ Convert the SOLWEIG ASCII grids to GeoTIFF after export:
 ```cmd
 python "%PROJECT_DIR%\solweig\solweig_ascii_to_geotiff.py" --indir "%OUT_DIR%\solweig_inputs"
 ```
+
+![SOLWEIG, ENVI-met, and point-cloud outputs](images/Other_outputs.jpg)
 
 ## ENVI-met Voxel Export
 
