@@ -39,6 +39,12 @@ outputs/
 *.csv
 *.json.gz
 
+# README/documentation images
+!images/
+!images/*.jpg
+!images/*.jpeg
+!images/*.png
+
 # Heavy asset folders kept outside git
 cars/
 people/
