@@ -10,7 +10,7 @@ airborne-style point cloud.
 </p>
 <p align="center"><em>Overall methodology</em></p>
 
-## Setup
+## Setup [LLM-Based setup in progress]
 
 Install Blender (tested in v4.5) and install the VLM/Python dependencies in the Anaconda environment you use for the
 pipeline:
