@@ -122,6 +122,29 @@ def _render_output_name(render_mode: str, render_outname: Optional[str]) -> str:
     return "spin.mp4" if render_mode == "render1" else "still.png"
 
 
+def _render_resolution_args(args) -> list[object]:
+    cmd: list[object] = []
+    if args.render_resx is not None:
+        cmd.extend(["--resx", args.render_resx])
+    if args.render_resy is not None:
+        cmd.extend(["--resy", args.render_resy])
+    return cmd
+
+
+def _render_motion_args(args) -> list[object]:
+    cmd: list[object] = [
+        "--pan-deg",
+        args.render_pan_deg,
+        "--pan-center-deg",
+        args.render_pan_center_deg,
+        "--exposure",
+        args.render_exposure,
+    ]
+    if args.render_rotations is not None:
+        cmd.extend(["--rotations", args.render_rotations])
+    return cmd
+
+
 
 def _csv_to_property_list(raw: str) -> list[str]:
     values = [v.strip().lower() for v in (raw or "").split(",") if v.strip()]
@@ -171,9 +194,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     ap.add_argument("--render-mode", default="render3", choices=["render1", "render2", "render3"], help="05_render.py mode")
     ap.add_argument("--render-outname", help="Optional final output filename, e.g. final.png or final.mp4")
-    ap.add_argument("--fps", type=int, default=30, help="Animation/render FPS for 03_animated.py and 05_render.py")
+    ap.add_argument("--render-resx", type=int, help="Render width in pixels. Defaults to 640 for render1 and 2048 for render2/render3.")
+    ap.add_argument("--render-resy", type=int, help="Render height in pixels. Defaults to 480 for render1 and 1536 for render2/render3.")
+    ap.add_argument("--render-pan-deg", type=float, default=25.0, help="Camera pan sweep in degrees for render1. Defaults to 25.")
+    ap.add_argument("--render-pan-center-deg", type=float, default=-90.0, help="Center yaw for render1 pan. Defaults to -90, looking along the street.")
+    ap.add_argument("--render-rotations", type=float, help="Optional full-spin override for render1. One rotation is 360 degrees.")
+    ap.add_argument("--render-exposure", type=float, default=-1.0, help="View exposure for render1. Defaults to -1.0 for half brightness.")
+    ap.add_argument("--fps", type=int, default=24, help="Animation/render FPS for 03_animated.py and 05_render.py")
     ap.add_argument("--duration", type=float, default=20.0, help="Animation duration in seconds for 03_animated.py")
-    ap.add_argument("--render-duration-s", type=float, default=8.0, help="Camera spin/render duration in seconds for 05_render.py")
+    ap.add_argument("--render-duration-s", type=float, default=4.0, help="Camera pan/render duration in seconds for 05_render.py")
 
     ap.add_argument("--skip-texture", action="store_true", help="Skip 02_textured.py")
     ap.add_argument("--skip-animate", action="store_true", help="Skip 03_animated.py")
@@ -416,6 +445,8 @@ def _run_property_visualization(
         args.fps,
         "--duration_s",
         args.render_duration_s,
+        *_render_motion_args(args),
+        *_render_resolution_args(args),
     ]
     run_cmd(render_cmd, cwd=scripts_dir, dry_run=args.dry_run)
     if not args.dry_run:
@@ -913,6 +944,8 @@ def main() -> int:
                     args.fps,
                     "--duration_s",
                     args.render_duration_s,
+                    *_render_motion_args(args),
+                    *_render_resolution_args(args),
                 ],
                 cwd=scripts_dir,
                 dry_run=args.dry_run,
@@ -1028,6 +1061,10 @@ def main() -> int:
             "latest_pipeline_blend": str(current_blend),
             "final_output": None if args.skip_render else str(final_output),
             "render_mode": args.render_mode,
+            "render_pan_deg": args.render_pan_deg,
+            "render_pan_center_deg": args.render_pan_center_deg,
+            "render_rotations": args.render_rotations,
+            "render_exposure": args.render_exposure,
             "property_render_mode": None if args.skip_property_images else args.property_render_mode,
             "property_outputs": property_outputs,
             "metrics_json": None if metrics_json is None else str(metrics_json),

@@ -4,7 +4,7 @@
 # blender -b "D:\downloads\test_export_driveways_new.blend" `
 #   -P "D:\downloads\animate_mixamo_peds_and_cars_v2.py" -- `
 #   --mixamo_dir "D:\downloads\mixamo_fbx" `
-#   --fps 30 --duration 20 `
+#   --fps 24 --duration 20 `
 #   --peds_move_ratio 1.0 `
 #   --walk_fallback_mps 1.5 --run_fallback_mps 3.5 `
 #   --speed_scale_min 0.95 --speed_scale_max 1.05 `
@@ -42,7 +42,7 @@ def arg(flag, default=None):
     return default
 
 # Timing / IO
-FPS              = int(arg("--fps", "30"))
+FPS              = int(arg("--fps", "24"))
 DURATION_S       = float(arg("--duration", "20"))
 SAVE_OUT_PATH    = arg("--out", None)
 

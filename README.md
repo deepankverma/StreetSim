@@ -204,13 +204,19 @@ python "%PROJECT_DIR%\run_image_to_blender.py" --image "%IMAGE_PATH%" --outdir "
 
 | Argument | Values |
 |---|---|
-| `--render-mode render1` | Spin animation, MP4 |
+| `--render-mode render1` | Camera pan animation, MP4 |
 | `--render-mode render2` | Still image, PNG |
 | `--render-mode render3` | Clay/outlines image, PNG |
 | `--render-outname` | Override final output filename |
-| `--fps` | FPS for animation and render stages |
+| `--render-resx` | Render width in pixels, defaults to `640` for `render1` and `2048` for `render2`/`render3` |
+| `--render-resy` | Render height in pixels, defaults to `480` for `render1` and `1536` for `render2`/`render3` |
+| `--render-pan-deg` | Camera pan sweep for `render1`, defaults to `25` |
+| `--render-pan-center-deg` | Center yaw for `render1`, defaults to `-90` to look along the street |
+| `--render-rotations` | Optional full-spin override for `render1`; `1.0` is 360 degrees |
+| `--render-exposure` | View exposure for `render1`, defaults to `-1.0` for half brightness |
+| `--fps` | FPS for animation and render stages, defaults to `24` |
 | `--duration` | Animation duration for `03_animated.py` |
-| `--render-duration-s` | Render camera duration for `05_render.py` |
+| `--render-duration-s` | Render camera duration for `05_render.py`, defaults to `4` seconds |
 
 Example:
 

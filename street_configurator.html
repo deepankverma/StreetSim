@@ -164,7 +164,7 @@
         </div>
         <div class="row"><label>Render mode</label>
           <div>
-            <label><input type="radio" name="rendermode" value="render1"> Spin video (MP4)</label>
+            <label><input type="radio" name="rendermode" value="render1"> Pan video (MP4)</label>
             <label><input type="radio" name="rendermode" value="render2"> Still (PNG)</label>
             <label><input type="radio" name="rendermode" value="render3" checked> Clay + outlines (PNG)</label>
           </div>
@@ -404,7 +404,7 @@ function buildStreetData(){
     if (s.pipeline.texture) { ps.push("& $blender -b $B01 -P $S02 -- --outblend $B02 --texdir $texturesDir --pack true --relative true"); }
     if (s.pipeline.animate) {
       const inA = s.pipeline.texture ? '$B02' : '$B01';
-      ps.push(`& $blender -b ${inA} -P $S03 -- --fps 30 --duration 20 --mixamo_dir $mixamoDir --out $B03`);
+      ps.push(`& $blender -b ${inA} -P $S03 -- --mixamo_dir $mixamoDir --out $B03`);
     }
     if (s.pipeline.sound) {
       const inS = s.pipeline.animate ? '$B03' : (s.pipeline.texture ? '$B02' : '$B01');
@@ -419,13 +419,13 @@ function buildStreetData(){
     if (s.pipeline.props) {
       ps.push("$propMode = 'render2'");
       ps.push("& $blender -b $LATEST -P $P1 -- --clear true --save_as (Join-Path $outdir 'prop_enclosure.blend')");
-      ps.push("& $blender -b (Join-Path $outdir 'prop_enclosure.blend') -P $S05 -- --out (Join-Path $outdir 'prop_enclosure.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_enclosure.blend') -P $S05 -- --out (Join-Path $outdir 'prop_enclosure.png') --mode $propMode");
       ps.push("& $blender -b $LATEST -P $P2 -- --probe_mode ped --probes_per_side 1 --radius 100 --rays_iso 360 --flatten true --clear true --save_as (Join-Path $outdir 'prop_isovist.blend')");
-      ps.push("& $blender -b (Join-Path $outdir 'prop_isovist.blend') -P $S05 -- --out (Join-Path $outdir 'prop_isovist.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_isovist.blend') -P $S05 -- --out (Join-Path $outdir 'prop_isovist.png') --mode $propMode");
       ps.push("& $blender -b $LATEST -P $P3 -- --probe_mode ped --probes 1 --radius 40 --az 48 --el 12 --tick 0.5 --hits false --clear true --save_as (Join-Path $outdir 'prop_svf.blend')");
-      ps.push("& $blender -b (Join-Path $outdir 'prop_svf.blend') -P $S05 -- --out (Join-Path $outdir 'prop_svf.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_svf.blend') -P $S05 -- --out (Join-Path $outdir 'prop_svf.png') --mode $propMode");
       ps.push("& $blender -b $LATEST -P $P4 -- --lat $lat --lon $lon --date $date --tstart $tstart --tend $tend --tz $tz --north $north --clear true --save_as (Join-Path $outdir 'prop_shade.blend')");
-      ps.push("& $blender -b (Join-Path $outdir 'prop_shade.blend') -P $S05 -- --out (Join-Path $outdir 'prop_shade.png') --mode $propMode --fps 30 --duration_s 8");
+      ps.push("& $blender -b (Join-Path $outdir 'prop_shade.blend') -P $S05 -- --out (Join-Path $outdir 'prop_shade.png') --mode $propMode");
       ps.push("& $blender -b $LATEST -P $PM -- --out (Join-Path $outdir 'street_metrics.json') --lat $lat --lon $lon --date $date --tstart $tstart --tend $tend --tz $tz --north $north");
     }
 

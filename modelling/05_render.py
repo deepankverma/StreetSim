@@ -28,25 +28,37 @@ def _parse_center(s):
 # ---------------- defaults / CLI ----------------
 MODE        = (_get_arg("--mode", "render1") or "render1").lower()  # render1|render2|render3
 OUT_PATH    = _get_arg("--out", "spin.mp4")
-ROTATIONS   = _get_arg("--rotations", 1.0, as_float=True) or 1.0
-DURATION_S  = _get_arg("--duration_s", 1, as_float=True)
+ROTATIONS   = _get_arg("--rotations", None, as_float=True)
+PAN_DEG     = _get_arg("--pan-deg", 25.0, as_float=True)
+PAN_CENTER_DEG = _get_arg("--pan-center-deg", -90.0, as_float=True)
+DURATION_S  = _get_arg("--duration_s", 4.0, as_float=True)
 RADIUS      = _get_arg("--radius", 80.0, as_float=True) or 80.0
 # was 100 for other properties render, 150 for svf
 HEIGHT      = _get_arg("--height", 30.0, as_float=True) or 50.0
 CENTER_STR  = _get_arg("--center", "0,0,0")
 CENTER      = _parse_center(CENTER_STR)
-FPS         = _get_arg("--fps", None, as_int=True)
+FPS         = _get_arg("--fps", 24, as_int=True)
 RESX        = _get_arg("--resx", None, as_int=True)   # if None, we set per-mode defaults
 RESY        = _get_arg("--resy", None, as_int=True)
+PAN_VIDEO_RESX = 640
+PAN_VIDEO_RESY = 480
+STILL_RESX = 2048
+STILL_RESY = 1536
 CAM_NAME    = _get_arg("--camera_name", None)
 USE_CURCAM  = _get_arg("--use_current_camera", False, as_bool=True)
 
 ENGINE      = (_get_arg("--engine", "cycles") or "cycles").strip().lower()
 GPU         = _get_arg("--gpu", True, as_bool=True)
-SAMPLES     = _get_arg("--samples", 32, as_int=True)
+SAMPLES     = _get_arg("--samples", 128, as_int=True)
 DENOISE     = (_get_arg("--denoise", "oidn") or "oidn").strip().lower()
 MOTION_BLUR = _get_arg("--motion_blur", True, as_bool=True)
-LIGHTING_MODE = (_get_arg("--lighting", "both") or "nishita").strip().lower()  # nishita|scene|both
+LIGHTING_MODE = (_get_arg("--lighting", "nishita") or "nishita").strip().lower()  # nishita|scene|both
+RENDER_EXPOSURE = _get_arg("--exposure", -0.5, as_float=True)
+NISHITA_SUN_SIZE = _get_arg("--sun-size", 0.545, as_float=True)
+NISHITA_SUN_INTENSITY = _get_arg("--sun-intensity", 0.4, as_float=True)
+NISHITA_SUN_ELEVATION_DEG = _get_arg("--sun-elevation-deg", 30.0, as_float=True)
+NISHITA_SUN_ROTATION_DEG = _get_arg("--sun-rotation-deg", 15.0, as_float=True)
+NISHITA_WORLD_STRENGTH = _get_arg("--world-strength", 0.4, as_float=True)
 
 # still framing
 STILL_YAW_DEG = 90.0
@@ -59,6 +71,12 @@ def fps_real():
     fps  = float(getattr(scn.render, "fps", 24))
     base = float(getattr(scn.render, "fps_base", 1.0) or 1.0)
     return fps / base
+
+def apply_render_fps():
+    if FPS:
+        scn = scene()
+        scn.render.fps = int(FPS)
+        scn.render.fps_base = 1.0
 
 def link_object(obj):
     try:
@@ -109,6 +127,20 @@ def set_render_visibility_for_lights(enabled, light_types=None):
         if wanted is not None and light_type not in wanted:
             continue
         obj.hide_render = not enabled
+
+def set_shadow_casting_for_lights(enabled, light_types=None):
+    """Enable/disable shadows from scene light objects without hiding their illumination."""
+    wanted = None if light_types is None else {str(t).upper() for t in light_types}
+    for obj in bpy.data.objects:
+        if obj.type != 'LIGHT':
+            continue
+        light_type = str(getattr(obj.data, "type", "")).upper()
+        if wanted is not None and light_type not in wanted:
+            continue
+        _safe_set(obj.data, "use_shadow", bool(enabled))
+        cycles_visibility = getattr(obj, "cycles_visibility", None)
+        if cycles_visibility:
+            _safe_set(cycles_visibility, "shadow", bool(enabled))
 
 def _pick_engine_id(scn, preferred=('BLENDER_EEVEE_NEXT','BLENDER_EEVEE','BLENDER_WORKBENCH','CYCLES')):
     items = tuple(scn.render.bl_rna.properties['engine'].enum_items.keys())
@@ -192,14 +224,22 @@ def build_spin_rig(center=(0,0,0), radius=30.0, height=5.0):
     scene().camera = cam
     return rig, tgt, cam
 
-def animate_spin(rig, rotations=1.0, start=None, end=None):
+def animate_spin(rig, rotations=None, pan_degrees=25.0, pan_center_degrees=-90.0, start=None, end=None):
     if start is None: start = scene_start()
     if end   is None: end   = scene_end()
     rig.rotation_mode = 'XYZ'
     clear_anim(rig)
-    rig.rotation_euler = (0.0, 0.0, 0.0)
+    center_angle = math.radians(float(pan_center_degrees if pan_center_degrees is not None else -90.0))
+    if rotations is not None:
+        start_angle = center_angle
+        end_angle = center_angle + float(rotations) * (2.0 * math.pi)
+    else:
+        sweep = math.radians(float(pan_degrees if pan_degrees is not None else 25.0))
+        start_angle = center_angle - 0.5 * sweep
+        end_angle = center_angle + 0.5 * sweep
+    rig.rotation_euler = (0.0, 0.0, start_angle)
     rig.keyframe_insert(data_path="rotation_euler", frame=start, index=2)
-    rig.rotation_euler[2] = float(rotations) * (2.0 * math.pi)
+    rig.rotation_euler[2] = end_angle
     rig.keyframe_insert(data_path="rotation_euler", frame=end, index=2)
     ad = rig.animation_data
     act = ad.action if ad else None
@@ -213,6 +253,37 @@ def set_rig_yaw(rig, degrees):
     rig.rotation_mode = 'XYZ'
     clear_anim(rig)
     rig.rotation_euler = (0.0, 0.0, math.radians(degrees))
+
+def set_render1_view_settings(exposure=0.0):
+    scn = scene()
+    try:
+        scn.view_settings.exposure = float(exposure)
+        scn.view_settings.gamma = 1.0
+    except Exception:
+        pass
+
+def extend_nla_strips_to_scene_end():
+    """Extend looped action strips so longer renders do not outlast walk/run cycles."""
+    scn = scene()
+    end = scene_end()
+    changed = 0
+    for obj in bpy.data.objects:
+        ad = getattr(obj, "animation_data", None)
+        if not ad:
+            continue
+        for track in getattr(ad, "nla_tracks", []):
+            for strip in getattr(track, "strips", []):
+                try:
+                    length = max(1.0, float(strip.action_frame_end) - float(strip.action_frame_start))
+                    needed = (float(end) - float(strip.frame_start)) + length + 2.0
+                    repeat = max(1, math.ceil(needed / length))
+                    if repeat > float(getattr(strip, "repeat", 1.0)):
+                        strip.repeat = repeat
+                        changed += 1
+                except Exception:
+                    pass
+    if changed:
+        print(f"[Anim] Extended {changed} NLA loop strips to frame {end}.")
 
 # ---------------- audio ----------------
 def configure_audio_and_retime_speakers():
@@ -249,11 +320,11 @@ def configure_audio_and_retime_speakers():
 # ---------------- world: Nishita ----------------
 def ensure_nishita_world():
     """Create/refresh World using Nishita Sky with fixed parameters."""
-    sun_size = 0.545
-    sun_intensity = 0.4
-    sun_elevation_deg = 30.0
-    sun_rotation_deg = 15.0
-    strength = 0.4
+    sun_size = float(NISHITA_SUN_SIZE)
+    sun_intensity = float(NISHITA_SUN_INTENSITY)
+    sun_elevation_deg = float(NISHITA_SUN_ELEVATION_DEG)
+    sun_rotation_deg = float(NISHITA_SUN_ROTATION_DEG)
+    strength = float(NISHITA_WORLD_STRENGTH)
 
     world = bpy.context.scene.world or bpy.data.worlds.get("World")
     if not world:
@@ -343,7 +414,7 @@ def configure_render1_lighting(mode):
     render1 lighting modes:
       - nishita: Nishita sky only, scene lights disabled
       - scene: scene lights only, world lighting disabled
-      - both: Nishita sky plus scene lights
+      - both: Nishita sky shadows plus non-shadow scene fill lights
     """
     raw_mode = (mode or "nishita").strip().lower()
     aliases = {
@@ -357,16 +428,22 @@ def configure_render1_lighting(mode):
 
     if resolved == "nishita":
         ensure_nishita_world()
+        set_shadow_casting_for_lights(True)
         set_render_visibility_for_lights(False)
     elif resolved == "scene":
         ensure_scene_lights_world()
         set_render_visibility_for_lights(True)
+        set_shadow_casting_for_lights(False)
+        set_shadow_casting_for_lights(True, light_types=("SUN",))
     elif resolved == "both":
         ensure_nishita_world()
-        set_render_visibility_for_lights(True)
+        set_shadow_casting_for_lights(False)
+        set_render_visibility_for_lights(False, light_types=("SUN",))
+        set_render_visibility_for_lights(True, light_types=("AREA", "POINT", "SPOT"))
     else:
         print(f"[Lighting] Unknown --lighting '{mode}', falling back to 'nishita'.")
         ensure_nishita_world()
+        set_shadow_casting_for_lights(True)
         set_render_visibility_for_lights(False)
         resolved = "nishita"
 
@@ -422,8 +499,9 @@ def configure_output_movie(out_path):
         abs_out = os.path.abspath(bpy.path.abspath(out_path))
         os.makedirs(os.path.dirname(abs_out), exist_ok=True)
     except Exception: pass
-    if FPS:
-        scn.render.fps = int(FPS); scn.render.fps_base = 1.0
+    apply_render_fps()
+    scn.render.resolution_x = int(RESX) if RESX is not None else PAN_VIDEO_RESX
+    scn.render.resolution_y = int(RESY) if RESY is not None else PAN_VIDEO_RESY
     scn.render.image_settings.file_format = 'FFMPEG'
     scn.render.ffmpeg.format = 'MPEG4'
     scn.render.ffmpeg.codec = 'H264'
@@ -442,9 +520,9 @@ def configure_output_still(out_path, fmt='PNG'):
         abs_out = os.path.abspath(bpy.path.abspath(out_path))
         os.makedirs(os.path.dirname(abs_out), exist_ok=True)
     except Exception: pass
-    # per-mode default res if not supplied
-    scn.render.resolution_x = int(RESX) if RESX is not None else 2560
-    scn.render.resolution_y = int(RESY) if RESY is not None else 1440
+    # Default still resolution if not supplied.
+    scn.render.resolution_x = int(RESX) if RESX is not None else STILL_RESX
+    scn.render.resolution_y = int(RESY) if RESY is not None else STILL_RESY
     scn.render.image_settings.file_format = fmt
     scn.render.filepath = bpy.path.abspath(out_path)
 
@@ -453,7 +531,8 @@ def ensure_duration_seconds(duration_s):
     scn = scene()
     fr = fps_real()
     s = scene_start()
-    e = int(s + max(1.0, float(duration_s) * fr))
+    frame_count = max(1, int(round(float(duration_s) * fr)))
+    e = int(s + frame_count - 1)
     scn.frame_end = e
     return s, e
 
@@ -565,11 +644,18 @@ def main():
         #   --lighting both
         set_ground_material(ensure_white_ground_mat(emission=False, name="_GroundWhiteRender1"))
         configure_engine_cycles()
+        apply_render_fps()
         s, e = ensure_duration_seconds(DURATION_S)
-        animate_spin(rig, rotations=ROTATIONS, start=s, end=e)
+        animate_spin(rig, rotations=ROTATIONS, pan_degrees=PAN_DEG, pan_center_degrees=PAN_CENTER_DEG, start=s, end=e)
+        set_render1_view_settings(RENDER_EXPOSURE)
+        extend_nla_strips_to_scene_end()
         configure_audio_and_retime_speakers()
         configure_output_movie(OUT_PATH)
-        print(f"[Render] Mode=render1 (spin) frames {s}->{e} @ {fps_real():.2f} fps")
+        if ROTATIONS is not None:
+            motion_desc = f"spin, {float(ROTATIONS) * 360.0:.1f} degrees"
+        else:
+            motion_desc = f"pan, {float(PAN_DEG):.1f} degrees around yaw {float(PAN_CENTER_DEG):.1f}"
+        print(f"[Render] Mode=render1 ({motion_desc}) frames {s}->{e} @ {fps_real():.2f} fps")
         print(f"[Render] Output: {scene().render.filepath}")
         bpy.ops.render.render(animation=True, use_viewport=False)
 
