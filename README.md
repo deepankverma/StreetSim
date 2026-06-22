@@ -1,5 +1,11 @@
 # StreetSim v1 
 
+<p align="center">
+  <img src="images/variants_80_square.png" alt="StreetSim methodology overview" width="75%">
+</p>
+<p align="center"><em>Streetscape variants</em></p>
+
+
 This project is aimed at generating procedural Blender street scenes.
 It also exports analysis products such as property
 visualizations, SOLWEIG rasters, ENVI-met voxel grids, and an

@@ -21,6 +21,8 @@ street_data.json
 
 # Local testing/visualization helpers
 generate_random_street_clips.py
+make_variant_contact_sheet.py
+make_variant_video_gallery.py
 random_street_clips.py
 random_street_clips/
 __random_clip_dryrun*/
