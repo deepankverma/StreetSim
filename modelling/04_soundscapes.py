@@ -65,7 +65,7 @@ TREE_MODE  = (arg("--tree_mode", "branch0") or "branch0").lower()  # branch0 | a
 TREE_CLEAN = arg_bool("--tree_clean", True)
 
 # Phase randomization (seconds). Set to 0 to disable random start phase.
-PHASE_MAX_S = arg("--phase_max_s", 3.0, as_float=True)
+PHASE_MAX_S = arg("--phase_max_s", 12.0, as_float=True)
 PHASE_MAX_S = 0.0 if PHASE_MAX_S is None else float(PHASE_MAX_S)
 
 AUDIO_EXTS = {".wav", ".ogg", ".mp3", ".flac", ".aif", ".aiff"}
@@ -559,15 +559,15 @@ def main():
     attach_tree_speakers(bird_files, wind_files, prob=TREE_PROB)
     attach_ambience_speakers(amb_files, count=AMB_COUNT)
 
-    # Phase randomization (if enabled) BEFORE final retime/normalize
-    if PHASE_MAX_S > 0.0:
-        randomize_speaker_start_offsets(max_offset_s=PHASE_MAX_S, seed=SEED)
-
-    # Ensure all existing speakers (cars/peds/trees/amb) start at scene start and repeat
-    retime_all_speaker_soundclips(start_frame=_scene_start(), loop_to_scene=True)
-
     # Normalize timeline (disables preview range, clears VSE SOUND strips, enforces loop flags)
     normalize_timeline_audio(frame_start=0)
+
+    # Ensure all existing speakers (cars/peds/trees/amb) cover the full timeline.
+    retime_all_speaker_soundclips(start_frame=_scene_start(), loop_to_scene=True)
+
+    # Phase randomization must happen last; otherwise final retiming resets all clips to 0.00.
+    if PHASE_MAX_S > 0.0:
+        randomize_speaker_start_offsets(max_offset_s=PHASE_MAX_S, seed=SEED)
 
     if OUT_PATH:
         out = bpy.path.abspath(OUT_PATH)

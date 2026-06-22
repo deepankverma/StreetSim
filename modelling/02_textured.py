@@ -76,7 +76,15 @@ MP = {
 
 
 # Randomize UV offset/rotation for large repetitive surfaces to reduce tiling
-RAND_UV = {"wall": True, "roof": True}
+RAND_UV = {
+    "bikepath": True,
+    "parking": True,
+    "median": True,
+    "footpath": True,
+    "driveway": True,
+    "wall": True,
+    "roof": True,
+}
 
 # Save options
 OUT_BLEND = arg("--outblend", None)
@@ -477,37 +485,39 @@ def _legacy_build_category_materials():
 
 # --------------- material selection ---------------
 def build_category_materials():
-    """Build shared scene materials and collect per-object variant pools."""
+    """Build street-level materials and collect per-object pools where useful."""
     mats = {}
     variant_state = {}
     for cat in TEXTURE_CATEGORIES:
         folder = _folder_for(cat)
         if folder:
-            if cat in PER_OBJECT_VARIANT_CATEGORIES:
-                texture_sets = _discover_texture_sets(folder)
-                if texture_sets:
+            texture_sets = _discover_texture_sets(folder)
+            if texture_sets:
+                if cat in PER_OBJECT_VARIANT_CATEGORIES:
                     print(f"[Tex] Category '{cat}' -> {folder} ({len(texture_sets)} texture set(s), per-object random)")
                     mats[cat] = None
                     variant_state[cat] = {"sets": texture_sets, "bag": []}
                 else:
-                    print(f"[Tex] Category '{cat}' missing usable texture sets in {folder}.")
-                    mats[cat] = None
+                    texture_set = random.choice(texture_sets)
+                    texture_name = os.path.basename(os.path.normpath(texture_set)) or cat
+                    print(f"[Tex] Category '{cat}' -> {folder} ({len(texture_sets)} texture set(s), selected '{texture_name}')")
+                    mats[cat] = make_pbr_material(
+                        f"MAT_{cat.capitalize()}_{texture_name}",
+                        texture_set,
+                        scale_xyz=(MP[cat], MP[cat], 1.0),
+                        mapping_mode=MAPPING_MODE,
+                        randomize_uv=bool(RAND_UV.get(cat, False)),
+                    )
             else:
-                print(f"[Tex] Category '{cat}' -> {folder} (maxdepth={MAX_DEPTH})")
-                mats[cat] = make_pbr_material(
-                    f"MAT_{cat.capitalize()}",
-                    folder,
-                    scale_xyz=(MP[cat], MP[cat], 1.0),
-                    mapping_mode=MAPPING_MODE,
-                    randomize_uv=bool(RAND_UV.get(cat, False)),
-                )
+                print(f"[Tex] Category '{cat}' missing usable texture sets in {folder}.")
+                mats[cat] = None
         else:
             print(f"[Tex] Category '{cat}' missing (folder not found).")
             mats[cat] = None
     return mats, variant_state
 
 def assign_material_for_category(obj, category, mats, variant_state):
-    """Assign either a shared material or a per-object random variant."""
+    """Assign street-level material or per-object material for organic/building categories."""
     if category in PER_OBJECT_VARIANT_CATEGORIES:
         texture_set = _next_texture_set(category, variant_state)
         if not texture_set:

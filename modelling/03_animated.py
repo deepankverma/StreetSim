@@ -45,6 +45,9 @@ def arg(flag, default=None):
 FPS              = int(arg("--fps", "24"))
 DURATION_S       = float(arg("--duration", "20"))
 SAVE_OUT_PATH    = arg("--out", None)
+SEED             = arg("--seed", None)
+if SEED is not None:
+    random.seed(int(SEED))
 
 # Pedestrians (Mixamo)
 PEDS_MOVE_RATIO  = float(arg("--peds_move_ratio", "1.0"))

@@ -2134,6 +2134,14 @@ if __name__ == "__main__":
     #     bpy.context.window_manager.popup_menu(show_error_message, title="File Not Saved", icon='ERROR')
     #     raise Exception("Blender file must be saved first.")
 
+    model_seed = street_data.get('seed', None)
+    if model_seed is not None:
+        try:
+            random.seed(int(model_seed))
+            print(f"[Seed] Model random seed: {int(model_seed)}")
+        except Exception as exc:
+            print(f"[Seed] Could not apply model seed {model_seed!r}: {exc}")
+
     if CLEAR_SCENE: clear_scene()
 
     # --- Create Ground Slab ---
@@ -2209,6 +2217,8 @@ if __name__ == "__main__":
         car_config = street_data['cars']; num_cars_to_place = car_config.get('count', 0)
         model_paths = car_config.get('model_paths', []); car_scale = car_config.get('scale', 1.0)
         street_length = street_data['length']
+        car_seed = car_config.get('seed', None)
+        car_rng = random.Random(car_seed) if car_seed is not None else random.Random()
 
         valid_model_paths = []
         print("\nValidating car model paths...")
@@ -2255,8 +2265,8 @@ if __name__ == "__main__":
             else:
                 intended_placements = []
                 for i in range(num_cars_to_place):
-                    side = random.choice(available_lanes)
-                    model_path = random.choice(valid_model_paths)
+                    side = car_rng.choice(available_lanes)
+                    model_path = car_rng.choice(valid_model_paths)
 
                     if side == 'left':
                         car_x = left_lane_center_x;  lane_width = left_driveway_width
@@ -2264,9 +2274,9 @@ if __name__ == "__main__":
                         car_x = right_lane_center_x; lane_width = right_driveway_width
 
                     # lateral jitter inside lane
-                    car_x += random.uniform(-lane_width * 0.2, lane_width * 0.2)
+                    car_x += car_rng.uniform(-lane_width * 0.2, lane_width * 0.2)
                     # along-street seed
-                    car_y = random.uniform(-street_length * 0.48, street_length * 0.48)
+                    car_y = car_rng.uniform(-street_length * 0.48, street_length * 0.48)
 
                     base_yaw = _side_yaw_rad(street_data, side)  # unified per-side + global fix
 
@@ -2293,7 +2303,7 @@ if __name__ == "__main__":
                 print(f"--- Placing {len(adjusted_placements)} Adjusted Cars ---"); placed_car_count = 0
                 for placement in adjusted_placements:
                     car_name = f"Car_{placement['id']+1}"
-                    final_rot_z = placement['base_yaw'] + random.uniform(-yaw_jitter, yaw_jitter)
+                    final_rot_z = placement['base_yaw'] + car_rng.uniform(-yaw_jitter, yaw_jitter)
                     final_rotation = (0, 0, final_rot_z)
 
                     imported_car_obj = import_and_place_car(
@@ -2307,7 +2317,7 @@ if __name__ == "__main__":
 
                         imported_car_obj.location = (placement['x'], placement['y'], car_final_z)
                         side_by_x = 'left' if imported_car_obj.location.x < 0 else 'right'
-                        imported_car_obj.rotation_euler[2] = _side_yaw_rad(street_data, side_by_x) + random.uniform(-yaw_jitter, yaw_jitter)
+                        imported_car_obj.rotation_euler[2] = _side_yaw_rad(street_data, side_by_x) + car_rng.uniform(-yaw_jitter, yaw_jitter)
                         imported_car_obj.select_set(False)
                         if bpy.context.view_layer.objects.active == imported_car_obj:
                             bpy.context.view_layer.objects.active = None
