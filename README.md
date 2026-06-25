@@ -5,31 +5,33 @@
 </p>
 <p align="center"><em>Streetscape variants</em></p>
 
+<p align="center"><em>Click any tile to open the MP4 render.</em></p>
+
 <table>
   <tr>
-    <td width="33%"><video src="images/variant_0002.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0005.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0010.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><a href="images/variant_0002.mp4"><img src="images/variant_0002_poster.png" alt="StreetSim variant 0002 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0005.mp4"><img src="images/variant_0005_poster.png" alt="StreetSim variant 0005 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0010.mp4"><img src="images/variant_0010_poster.png" alt="StreetSim variant 0010 clip" width="100%"></a></td>
   </tr>
   <tr>
-    <td width="33%"><video src="images/variant_0018.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0020.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0023.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><a href="images/variant_0018.mp4"><img src="images/variant_0018_poster.png" alt="StreetSim variant 0018 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0020.mp4"><img src="images/variant_0020_poster.png" alt="StreetSim variant 0020 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0023.mp4"><img src="images/variant_0023_poster.png" alt="StreetSim variant 0023 clip" width="100%"></a></td>
   </tr>
   <tr>
-    <td width="33%"><video src="images/variant_0028.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0030.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0034.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><a href="images/variant_0028.mp4"><img src="images/variant_0028_poster.png" alt="StreetSim variant 0028 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0030.mp4"><img src="images/variant_0030_poster.png" alt="StreetSim variant 0030 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0034.mp4"><img src="images/variant_0034_poster.png" alt="StreetSim variant 0034 clip" width="100%"></a></td>
   </tr>
   <tr>
-    <td width="33%"><video src="images/variant_0036.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0039.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0042.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><a href="images/variant_0036.mp4"><img src="images/variant_0036_poster.png" alt="StreetSim variant 0036 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0039.mp4"><img src="images/variant_0039_poster.png" alt="StreetSim variant 0039 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0042.mp4"><img src="images/variant_0042_poster.png" alt="StreetSim variant 0042 clip" width="100%"></a></td>
   </tr>
   <tr>
-    <td width="33%"><video src="images/variant_0044.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0045.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
-    <td width="33%"><video src="images/variant_0050.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><a href="images/variant_0044.mp4"><img src="images/variant_0044_poster.png" alt="StreetSim variant 0044 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0045.mp4"><img src="images/variant_0045_poster.png" alt="StreetSim variant 0045 clip" width="100%"></a></td>
+    <td width="33%"><a href="images/variant_0050.mp4"><img src="images/variant_0050_poster.png" alt="StreetSim variant 0050 clip" width="100%"></a></td>
   </tr>
 </table>
 
