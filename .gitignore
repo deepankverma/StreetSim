@@ -52,6 +52,7 @@ outputs/
 !images/*.jpg
 !images/*.jpeg
 !images/*.png
+!images/*.mp4
 
 # Heavy asset folders kept outside git
 cars/

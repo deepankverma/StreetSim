@@ -1,9 +1,37 @@
 # StreetSim v1 
 
 <p align="center">
-  <img src="images/variants_80_square.png" alt="StreetSim methodology overview" width="75%">
+  <img src="images/variants_48_square.png" alt="StreetSim methodology overview" width="75%">
 </p>
 <p align="center"><em>Streetscape variants</em></p>
+
+<table>
+  <tr>
+    <td width="33%"><video src="images/variant_0002.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0005.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0010.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+  </tr>
+  <tr>
+    <td width="33%"><video src="images/variant_0018.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0020.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0023.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+  </tr>
+  <tr>
+    <td width="33%"><video src="images/variant_0028.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0030.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0034.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+  </tr>
+  <tr>
+    <td width="33%"><video src="images/variant_0036.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0039.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0042.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+  </tr>
+  <tr>
+    <td width="33%"><video src="images/variant_0044.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0045.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+    <td width="33%"><video src="images/variant_0050.mp4" controls muted loop playsinline preload="metadata" width="100%"></video></td>
+  </tr>
+</table>
 
 
 This project is aimed at generating procedural Blender street scenes.

@@ -75,8 +75,9 @@ MP = {
 }
 
 
-# Randomize UV offset/rotation for large repetitive surfaces to reduce tiling
-RAND_UV = {
+# Randomize UV offset for large repetitive surfaces to reduce tiling.
+# Keep street-level surfaces unrotated so paving/asphalt patterns align with the street.
+RAND_UV_OFFSET = {
     "bikepath": True,
     "parking": True,
     "median": True,
@@ -84,6 +85,12 @@ RAND_UV = {
     "driveway": True,
     "wall": True,
     "roof": True,
+    "branches": True,
+}
+RAND_UV_ROTATION = {
+    "wall": True,
+    "roof": True,
+    "branches": True,
 }
 
 # Save options
@@ -222,7 +229,7 @@ def find_pbr_images(folder):
 
 
 # --------------- material builder ---------------
-def make_pbr_material(name, folder, scale_xyz=(1,1,1), mapping_mode="box", randomize_uv=False):
+def make_pbr_material(name, folder, scale_xyz=(1,1,1), mapping_mode="box", randomize_offset=False, randomize_rotation=False):
     maps = find_pbr_images(folder)
     if not maps:
         print(f"[Tex] No images found in '{folder}'. Skipping material {name}.")
@@ -261,8 +268,9 @@ def make_pbr_material(name, folder, scale_xyz=(1,1,1), mapping_mode="box", rando
     mapping.inputs["Scale"].default_value = (sx, sy, sz)
 
 
-    if randomize_uv:
+    if randomize_rotation:
         mapping.inputs["Rotation"].default_value[2] = random.random()*6.28318
+    if randomize_offset:
         mapping.inputs["Location"].default_value[0] = random.uniform(-10, 10)
         mapping.inputs["Location"].default_value[1] = random.uniform(-10, 10)
 
@@ -475,7 +483,8 @@ def _legacy_build_category_materials():
                 folder,
                 scale_xyz=(MP[cat], MP[cat], 1.0),   # meters → converted inside to 1/meters
                 mapping_mode=MAPPING_MODE,
-                randomize_uv=bool(RAND_UV.get(cat, False)),
+                randomize_offset=bool(RAND_UV_OFFSET.get(cat, False)),
+                randomize_rotation=bool(RAND_UV_ROTATION.get(cat, False)),
             )
 
         else:
@@ -506,7 +515,8 @@ def build_category_materials():
                         texture_set,
                         scale_xyz=(MP[cat], MP[cat], 1.0),
                         mapping_mode=MAPPING_MODE,
-                        randomize_uv=bool(RAND_UV.get(cat, False)),
+                        randomize_offset=bool(RAND_UV_OFFSET.get(cat, False)),
+                        randomize_rotation=bool(RAND_UV_ROTATION.get(cat, False)),
                     )
             else:
                 print(f"[Tex] Category '{cat}' missing usable texture sets in {folder}.")
@@ -527,7 +537,8 @@ def assign_material_for_category(obj, category, mats, variant_state):
             texture_set,
             scale_xyz=(MP[category], MP[category], 1.0),
             mapping_mode=MAPPING_MODE,
-            randomize_uv=bool(RAND_UV.get(category, False)),
+            randomize_offset=bool(RAND_UV_OFFSET.get(category, False)),
+            randomize_rotation=bool(RAND_UV_ROTATION.get(category, False)),
         )
         assign_material(obj, mat, MAPPING_MODE)
         return mat is not None

@@ -47,7 +47,8 @@ DIR_WIND  = resolve_path(arg("--dir_wind", os.path.join(SCRIPT_DIR, "sounds", "w
 DIR_AMB   = resolve_path(arg("--dir_amb", os.path.join(SCRIPT_DIR, "sounds", "amb")))
 
 SEED      = arg("--seed", None, as_int=True)
-AMB_COUNT = max(0, arg("--amb_count", 2, as_int=True) or 2)
+_AMB_COUNT_ARG = arg("--amb_count", 1, as_int=True)
+AMB_COUNT = max(0, 1 if _AMB_COUNT_ARG is None else int(_AMB_COUNT_ARG))
 TREE_PROB = max(0.0, min(1.0, arg("--tree_prob", 0.30, as_float=True) or 0.30))
 OUT_PATH  = arg("--outblend", None)
 
@@ -177,6 +178,8 @@ def randomize_speaker_start_offsets(max_offset_s=3.0, seed=None):
     e = _scene_end()
     fr = _fps_real()
     rng = random.Random(seed) if seed is not None else random
+    changed = 0
+    ambience_offsets = []
 
     for spk in [o for o in bpy.data.objects if o.type == 'SPEAKER']:
         sd = spk.data
@@ -210,8 +213,16 @@ def randomize_speaker_start_offsets(max_offset_s=3.0, seed=None):
                         st.mute = False
                         total_needed = (e - (s - off_f))
                         st.repeat = max(1.0, (total_needed / clip_len_f) + 1.0)
+                        changed += 1
+                        if spk.name.startswith("Ambience_"):
+                            ambience_offsets.append(
+                                f"{spk.name}:{os.path.basename(getattr(snd, 'filepath', '') or snd.name)}@{off_s:.2f}s"
+                            )
                     except Exception:
                         pass
+    print(f"[Audio] Randomized start phase on {changed} speaker strip(s), max={max_offset_s:.2f}s.")
+    if ambience_offsets:
+        print("[Audio] Ambience phases: " + ", ".join(ambience_offsets))
 
 def normalize_timeline_audio(frame_start=0):
     scn = bpy.context.scene
@@ -517,9 +528,17 @@ def attach_ambience_speakers(amb_files, count=2):
     xs = [0.0] * count
     ys = [y0 + (i+0.5)*(length/count) for i in range(count)]
     zs = [4.0] * count
+    amb_pool = list(amb_files)
+    random.shuffle(amb_pool)
+    selected = []
     n=0
     for i in range(count):
-        snd = load_sound(random.choice(amb_files))
+        if not amb_pool:
+            amb_pool = list(amb_files)
+            random.shuffle(amb_pool)
+        snd_path = amb_pool.pop()
+        selected.append(os.path.basename(snd_path))
+        snd = load_sound(snd_path)
         if not snd: continue
         spk = make_speaker(f"Ambience_{i+1:02d}", location=(xs[i], ys[i], zs[i]), parent=None, sound=snd,
                            volume=random.uniform(0.25,0.55), pitch=random.uniform(0.98,1.02),
@@ -530,6 +549,8 @@ def attach_ambience_speakers(amb_files, count=2):
         except Exception: pass
         n+=1
     print(f"[Attach] Ambience bed speakers: {n}")
+    if selected:
+        print("[Attach] Ambience clips: " + ", ".join(selected))
     return n
 
 # ---------------- Main ----------------

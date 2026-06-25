@@ -287,6 +287,7 @@ def extend_nla_strips_to_scene_end():
 
 # ---------------- audio ----------------
 def configure_audio_and_retime_speakers():
+    """Enable render audio while preserving sound phase offsets from 04_soundscapes.py."""
     scn = scene()
     try: scn.sync_mode = 'AUDIO_SYNC'
     except: pass
@@ -303,10 +304,13 @@ def configure_audio_and_retime_speakers():
             for st in getattr(tr, "strips", []):
                 if getattr(st, "type", None) == 'SOUND':
                     try:
+                        original_start = float(st.frame_start)
                         length = max(1.0, (st.frame_end - st.frame_start))
-                        st.frame_start = float(s)
+                        if original_start > float(s):
+                            st.frame_start = float(s)
+                            original_start = float(s)
                         st.mute = False
-                        total  = max(0.0, (e - s))
+                        total  = max(0.0, (float(e) - original_start))
                         st.repeat = max(1.0, (total / length) + 1.0)
                     except Exception:
                         pass
