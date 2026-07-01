@@ -37,9 +37,9 @@
 
 
 This project is aimed at generating procedural Blender street scenes.
-It also exports analysis products such as property
-visualizations, SOLWEIG rasters, ENVI-met voxel grids, and an
-airborne-style point cloud.
+It also exports analysis products such as
+visualizations of streetscape properties, rasters and voxels as inputs in SOLWEIG and ENVI-met modelling softwares, and
+aerial point clouds.
 
 <p align="center">
   <img src="images/Methodology.jpg" alt="StreetSim methodology overview" width="75%">
@@ -65,7 +65,7 @@ pip install numpy matplotlib rasterio
 needed by `envimet_voxel_helper.py`. `rasterio` is only needed if you want
 SOLWEIG GeoTIFF conversion; use `--solweig-skip-geotiff` to skip that part.
 
-Make sure Ollama is running and that your vision model is available (tested with `llava:34b`):
+Make sure Ollama is running and any vision model is available (tested with `llava:34b`):
 
 ```cmd
 ollama serve
