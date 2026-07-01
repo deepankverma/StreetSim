@@ -18,7 +18,8 @@ from typing import Any, Dict, Optional
 
 from .defaults import DEFAULT_POLICY
 from .mapper import normalize_street_data, vision_to_street_data
-from .ollama_client import extract_vision_schema
+from .ollama_client import extract_vision_schema as extract_ollama_vision_schema
+from .openai_client import OPENAI_RESPONSES_URL, extract_vision_schema as extract_openai_vision_schema
 from .prompts import COARSE_PROMPT, REFINE_PROMPT
 from .schemas import StreetDataConfig, VisionStreetSchema
 
@@ -211,12 +212,61 @@ def _print_vision_summary(vision: Dict[str, Any]) -> None:
     print("=== End vision summary ===\n", flush=True)
 
 
+def _extract_vision_with_provider(
+    provider: str,
+    image_path: str,
+    model: str,
+    prompt1: str,
+    prompt2: str,
+    temperature: float,
+    ollama_url: str,
+    openai_api_key: Optional[str],
+    openai_base_url: str,
+    request_timeout: float,
+    save_passes_dir: Optional[str] = None,
+    print_passes: bool = False,
+    verbose: bool = False,
+) -> Dict[str, Any]:
+    provider_key = (provider or "ollama").strip().lower()
+    if provider_key == "ollama":
+        return extract_ollama_vision_schema(
+            image_path=image_path,
+            model=model,
+            prompt1=prompt1,
+            prompt2=prompt2,
+            temperature=temperature,
+            ollama_url=ollama_url,
+            request_timeout=request_timeout,
+            save_passes_dir=save_passes_dir,
+            print_passes=print_passes,
+            verbose=verbose,
+        )
+    if provider_key in {"openai", "responses"}:
+        return extract_openai_vision_schema(
+            image_path=image_path,
+            model=model,
+            prompt1=prompt1,
+            prompt2=prompt2,
+            temperature=temperature,
+            openai_api_key=openai_api_key,
+            openai_base_url=openai_base_url,
+            request_timeout=request_timeout,
+            save_passes_dir=save_passes_dir,
+            print_passes=print_passes,
+            verbose=verbose,
+        )
+    raise ValueError("Unknown VLM provider '{0}'. Use 'ollama' or 'openai'.".format(provider))
+
+
 def image_to_street_data(
     image_path: str,
     model: str = "qwen2.5vl",
+    provider: str = "ollama",
     policy: Optional[Dict[str, Any] | str] = None,
     temperature: float = 0.0,
     ollama_url: str = "http://localhost:11434/api/chat",
+    openai_api_key: Optional[str] = None,
+    openai_base_url: str = OPENAI_RESPONSES_URL,
     request_timeout: float = 600.0,
     validate_schema: bool = True,
     print_vision_summary: bool = False,
@@ -226,14 +276,17 @@ def image_to_street_data(
 ) -> Dict[str, Any]:
     active_policy = _load_policy(policy)
     if verbose:
-        print("[1/4] Running 2-pass vision extraction...", flush=True)
-    vision = extract_vision_schema(
+        print(f"[1/4] Running 2-pass vision extraction with provider '{provider}'...", flush=True)
+    vision = _extract_vision_with_provider(
+        provider=provider,
         image_path=image_path,
         model=model,
         prompt1=COARSE_PROMPT,
         prompt2=REFINE_PROMPT,
         temperature=temperature,
         ollama_url=ollama_url,
+        openai_api_key=openai_api_key,
+        openai_base_url=openai_base_url,
         request_timeout=request_timeout,
         print_passes=print_vision_passes,
         verbose=verbose,
@@ -263,9 +316,12 @@ def save_street_data(
     image_path: str,
     out_json: str,
     model: str = "qwen2.5vl",
+    provider: str = "ollama",
     policy: Optional[Dict[str, Any] | str] = None,
     temperature: float = 0.0,
     ollama_url: str = "http://localhost:11434/api/chat",
+    openai_api_key: Optional[str] = None,
+    openai_base_url: str = OPENAI_RESPONSES_URL,
     request_timeout: float = 600.0,
     validate_schema: bool = True,
     save_vision_json: Optional[str] = None,
@@ -280,14 +336,17 @@ def save_street_data(
     active_policy = _load_policy(policy)
 
     if verbose:
-        print(f"[2/6] Running 2-pass vision extraction with model '{model}'...", flush=True)
-    vision = extract_vision_schema(
+        print(f"[2/6] Running 2-pass vision extraction with provider '{provider}' and model '{model}'...", flush=True)
+    vision = _extract_vision_with_provider(
+        provider=provider,
         image_path=image_path,
         model=model,
         prompt1=COARSE_PROMPT,
         prompt2=REFINE_PROMPT,
         temperature=temperature,
         ollama_url=ollama_url,
+        openai_api_key=openai_api_key,
+        openai_base_url=openai_base_url,
         request_timeout=request_timeout,
         save_passes_dir=save_vision_passes_dir,
         print_passes=print_vision_passes,

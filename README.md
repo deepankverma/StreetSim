@@ -46,7 +46,7 @@ aerial point clouds.
 </p>
 <p align="center"><em>Overall methodology</em></p>
 
-## Setup [LLM-Based setup in progress]
+## Setup
 
 Install Blender (tested in v4.5) and install the VLM/Python dependencies in the Anaconda environment you use for the
 pipeline:
@@ -73,6 +73,12 @@ ollama serve
 
 ```cmd
 ollama pull llava:34b
+```
+
+For OpenAI/API-backed vision models, set an API key instead of running Ollama:
+
+```cmd
+set "OPENAI_API_KEY=your_api_key_here"
 ```
 
 ## Asset Pack
@@ -141,6 +147,39 @@ With no skip flags, the wrapper runs:
 11. point-cloud export
 
 Outputs are written into `--outdir`.
+
+## LLM-Based Street Info Collection
+
+The image-to-scene part is intentionally split into two layers:
+
+1. The VLM layer reads the street-view image and writes a compact vision JSON.
+   It runs two passes: a coarse extraction pass for left/right/median layout,
+   visible counts, approximate widths, and evidence; then a refinement pass that
+   checks and improves those estimates.
+2. The mapping layer converts that vision JSON into `street_data.json`, validates
+   it, rounds widths, applies confidence thresholds, and fills the schema used by
+   the Blender stages.
+
+This split keeps the model-facing part flexible while keeping Blender generation
+predictable. If a model estimates something oddly, you can inspect the VLM JSON
+with `--print-vision-json` or save both passes with `--save-vision-passes-dir`,
+then adjust the prompt, model, or mapping policy without touching the Blender
+scripts.
+
+Ollama is the default provider:
+
+```cmd
+python "%PROJECT_DIR%\run_image_to_blender.py" --image "%IMAGE_PATH%" --outdir "%OUT_DIR%" --blender "%BLENDER_EXE%" --scripts-dir "%PROJECT_DIR%" --assets-dir "%PROJECT_DIR%" --vlm-provider ollama --model llava:34b --ollama-url "http://localhost:11434/api/chat" --verbose --render-mode render2
+```
+
+Propreitary models use the same two-pass prompts and mapping, but call the
+Responses API instead of local Ollama.
+
+```cmd
+set "OPENAI_API_KEY=your_api_key_here"
+python "%PROJECT_DIR%\run_image_to_blender.py" --image "%IMAGE_PATH%" --outdir "%OUT_DIR%" --blender "%BLENDER_EXE%" --scripts-dir "%PROJECT_DIR%" --assets-dir "%PROJECT_DIR%" --vlm-provider openai --model gpt-5.5 --verbose --render-mode render2
+```
+
 
 ## Command Setup
 
@@ -217,9 +256,16 @@ python "%PROJECT_DIR%\run_image_to_blender.py" --image "%IMAGE_PATH%" --outdir "
 | `--blender` | Full path to `blender.exe`; defaults to `blender` if Blender is on PATH |
 | `--scripts-dir` | Project root. The wrapper searches standard subfolders automatically |
 | `--assets-dir` | Asset root for cars, lamps, people, textures, animations, and sounds. Defaults to `--scripts-dir` |
-| `--model` | Ollama vision model, for example `llava:34b` |
+| `--vlm-provider` | Vision model provider: `ollama` or `openai`. Default: `ollama` |
+| `--model` | Vision model name, for example `llava:34b` for Ollama or `gpt-5.5` for OpenAI |
 | `--ollama-url` | Ollama chat API URL. Default: `http://localhost:11434/api/chat` |
-| `--request-timeout` | Ollama timeout in seconds. Default: `600` |
+| `--openai-api-key` | Optional API key for OpenAI-compatible providers. If omitted, `OPENAI_API_KEY` is used |
+| `--openai-base-url` | OpenAI-compatible Responses API URL. Default: `https://api.openai.com/v1/responses` |
+| `--request-timeout` | VLM request timeout in seconds. Default: `600` |
+| `--print-vision-summary` | Print a short readable summary of the extracted street layout |
+| `--print-vision-json` | Print the final refined VLM JSON before mapping |
+| `--save-vision` | Save the final refined VLM JSON to a file |
+| `--save-vision-passes-dir` | Save both VLM passes as `pass_1_coarse.json` and `pass_2_refine.json` |
 | `--policy` | Optional JSON policy file |
 
 ## Skip Flags
@@ -417,6 +463,12 @@ Use `cli.py` when you only want `street_data.json`:
 
 ```cmd
 python "%PROJECT_DIR%\cli.py" --image "%IMAGE_PATH%" --out "%OUT_DIR%\street_data.json" --model llava:34b --ollama-url "http://localhost:11434/api/chat" --print-vision-summary --verbose
+```
+
+Vision-only extraction with an OpenAI/API-backed model:
+
+```cmd
+python "%PROJECT_DIR%\cli.py" --image "%IMAGE_PATH%" --out "%OUT_DIR%\street_data.json" --vlm-provider openai --model gpt-5.5 --print-vision-summary --verbose
 ```
 
 ## Troubleshooting

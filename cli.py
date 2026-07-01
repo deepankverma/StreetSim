@@ -14,13 +14,21 @@ from street_vlm.pipeline import save_street_data
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract street scene parameters from an image using an Ollama VLM and write street_data.json. "
+            "Extract street scene parameters from an image using a vision-language model and write street_data.json. "
             "This version uses a 2-pass flow: coarse extraction + refinement."
         )
     )
     parser.add_argument("--image", required=True, help="Input street-view image path.")
     parser.add_argument("--out", required=True, help="Output JSON path for street_data.json.")
-    parser.add_argument("--model", default="qwen2.5vl", help="Ollama model name, e.g. qwen2.5vl:7b.")
+    parser.add_argument(
+        "--vlm-provider",
+        "--provider",
+        dest="provider",
+        default="ollama",
+        choices=["ollama", "openai"],
+        help="Vision model provider. Default: ollama.",
+    )
+    parser.add_argument("--model", default="qwen2.5vl", help="Vision model name, e.g. qwen2.5vl:7b or gpt-5.5.")
     parser.add_argument("--policy", help="Optional JSON file overriding default mapping policy.")
     parser.add_argument("--save-vision", help="Optional path to save final refined vision JSON.")
     parser.add_argument(
@@ -42,8 +50,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print raw JSON for pass 1 and pass 2 in the terminal.",
     )
-    parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature for Ollama.")
+    parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature for the vision model.")
     parser.add_argument("--ollama-url", default="http://localhost:11434/api/chat", help="Ollama chat API URL.")
+    parser.add_argument("--openai-api-key", help="OpenAI API key. If omitted, OPENAI_API_KEY is used.")
+    parser.add_argument(
+        "--openai-base-url",
+        default="https://api.openai.com/v1/responses",
+        help="OpenAI-compatible Responses API URL.",
+    )
     parser.add_argument(
         "--request-timeout",
         type=float,
@@ -72,9 +86,12 @@ def main() -> int:
             image_path=str(image_path),
             out_json=args.out,
             model=args.model,
+            provider=args.provider,
             policy=args.policy,
             temperature=args.temperature,
             ollama_url=args.ollama_url,
+            openai_api_key=args.openai_api_key,
+            openai_base_url=args.openai_base_url,
             request_timeout=args.request_timeout,
             validate_schema=not args.no_validate,
             save_vision_json=args.save_vision,

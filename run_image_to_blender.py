@@ -182,12 +182,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Project asset root containing cars/, people/, lamp/, textures/, mixamo_fbx/, and sounds/. Defaults to --scripts-dir.",
     )
 
-    ap.add_argument("--model", default="qwen2.5vl", help="Ollama model name, e.g. qwen2.5vl:7b")
+    ap.add_argument(
+        "--vlm-provider",
+        "--provider",
+        dest="provider",
+        default="ollama",
+        choices=["ollama", "openai"],
+        help="Vision model provider. Default: ollama.",
+    )
+    ap.add_argument("--model", default="qwen2.5vl", help="Vision model name, e.g. qwen2.5vl:7b or gpt-5.5")
     ap.add_argument("--policy", help="Optional JSON policy file for street_vlm mapping")
     ap.add_argument("--ollama-url", default="http://localhost:11434/api/chat", help="Ollama chat API URL")
-    ap.add_argument("--request-timeout", type=float, default=600.0, help="Per-request Ollama timeout in seconds")
-    ap.add_argument("--temperature", type=float, default=0.0, help="Ollama temperature")
+    ap.add_argument("--openai-api-key", help="OpenAI API key. If omitted, OPENAI_API_KEY is used.")
+    ap.add_argument(
+        "--openai-base-url",
+        default="https://api.openai.com/v1/responses",
+        help="OpenAI-compatible Responses API URL.",
+    )
+    ap.add_argument("--request-timeout", type=float, default=600.0, help="Per-request VLM timeout in seconds")
+    ap.add_argument("--temperature", type=float, default=0.0, help="Vision model temperature")
     ap.add_argument("--no-validate", action="store_true", help="Skip VLM/final JSON schema validation")
+    ap.add_argument("--save-vision", help="Optional path to save final refined vision JSON")
+    ap.add_argument(
+        "--save-vision-passes-dir",
+        help="Optional folder to save pass_1_coarse.json and pass_2_refine.json",
+    )
     ap.add_argument("--print-vision-summary", action="store_true", help="Print concise extracted scene summary")
     ap.add_argument("--print-vision-json", action="store_true", help="Print final refined vision JSON")
     ap.add_argument("--print-vision-passes", action="store_true", help="Print raw JSON for pass 1 and pass 2 in terminal")
@@ -335,11 +354,16 @@ def _call_save_street_data(args, image_path: Path, cfg_path: Path):
         "image_path": str(image_path),
         "out_json": str(cfg_path),
         "model": args.model,
+        "provider": args.provider,
         "policy": args.policy,
         "temperature": args.temperature,
         "ollama_url": args.ollama_url,
+        "openai_api_key": args.openai_api_key,
+        "openai_base_url": args.openai_base_url,
         "request_timeout": args.request_timeout,
         "validate_schema": not args.no_validate,
+        "save_vision_json": args.save_vision,
+        "save_vision_passes_dir": args.save_vision_passes_dir,
         "print_vision_summary": args.print_vision_summary,
         "print_vision_json": args.print_vision_json,
         "print_vision_passes": args.print_vision_passes,
